@@ -1,0 +1,88 @@
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "Tunday Kebabs"
+
+primary_contact:
+  name: "Poorab Mishra"
+  email: "pm501@snu.edu.in"
+  phone: "+91-9956297538"
+
+team_members:
+  - name: "Poorab Mishra"
+    email: "pm501@snu.edu.in"
+    role: "Student(Btech CSE'27 - Shiv Nadar University)"
+    
+      name: "TODO-Member 2 Full Name"
+    email: "TODO-member1@example.com"
+    role: "ML Engineer"
+    
+      name: "TODO-Member 1 Full Name"
+    email: "TODO-member1@example.com"
+    role: "ML Engineer"
+
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/MajinVegetaaa/redrob-ranker"
+
+
+sandbox_link: "https://huggingface.co/spaces/TODO_USERNAME/redrob-ranker"
+# Required. A working hosted environment where the ranker can be run on a small
+# candidate sample. Alternatives: Streamlit Cloud, Replit, Colab, Docker, Binder.
+
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./output/Tunday_Kebabs.csv"
+# Single command that produces the team's CSV from candidates.jsonl.
+# Runs end-to-end within 5 minutes on CPU with 16GB RAM and no network.
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "MacBook Air M1"
+  cpu_cores: 8
+  ram_gb: 16
+  python_version: "3.13.9"
+  os: "macOS - 26.3.1 (a) (25D771280a)"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: false
+  pre_computation_time_minutes: 0
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+ai_tools_used:
+  - "Claude, Antigravity"
+  # Options: "Claude", "ChatGPT", "Copilot", "Cursor", "Gemini", "Codeium", "Other", "None"
+
+ai_usage_summary: |
+  TODO: Briefly describe how AI tools were used. Examples:
+  - "Used Claude for code review and architectural discussion."
+  - "Used Antigravity for documentation and complete development creating "
+
+# ============================================================================
+# Approach summary (optional but recommended)
+# ============================================================================
+methodology_summary: | #TODO-After completing the full assignment 
+  Two-pass rule-based + semantic ranking system. Phase 1 streams 100K candidates,
+  scoring across 5 weighted dimensions (career fit 0.35, skill authenticity 0.25,
+  behavioral signals 0.15, education 0.10, logistics 0.15) with honeypot detection
+  and anti-keyword-stuffing penalties. Phase 2 re-ranks the top 200 using
+  all-MiniLM-L6-v2 sentence embeddings blended 60/40 with rule scores. The career
+  fit scorer checks role descriptions for system-building experience (not just
+  skills keywords), penalises consulting-only backgrounds and title-chasers, and
+  uses a Gaussian bell curve centered at 7 years. Honeypot detection uses 5
+  independent timeline-consistency checks. Runtime ~30s on CPU, ~2GB RAM.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true
