@@ -1,4 +1,5 @@
-# 🏆 Redrob Hackathon — Intelligent Candidate Ranker
+# 🏆 Candidate Resume Ranking AI - IndiaRuns Hackathon (Redrob)
+### Team: Tunday Kebabs
 
 An AI-powered candidate ranking system that processes **100,000 profiles in ~30 seconds** to find the best-fit candidates for a Senior AI/ML Ranking Systems Engineer role.
 
