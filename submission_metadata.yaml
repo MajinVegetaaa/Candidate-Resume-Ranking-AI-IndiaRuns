@@ -66,16 +66,17 @@ ai_usage_summary: |
 # ============================================================================
 # Approach summary (optional but recommended)
 # ============================================================================
-methodology_summary: | #TODO-After completing the full assignment 
+methodology_summary: | 
   Two-pass rule-based + semantic ranking system. Phase 1 streams 100K candidates,
   scoring across 5 weighted dimensions (career fit 0.35, skill authenticity 0.25,
-  behavioral signals 0.15, education 0.10, logistics 0.15) with honeypot detection
+  behavioral signals 0.20, education 0.10, logistics 0.10) with honeypot detection
   and anti-keyword-stuffing penalties. Phase 2 re-ranks the top 200 using
-  all-MiniLM-L6-v2 sentence embeddings blended 60/40 with rule scores. The career
-  fit scorer checks role descriptions for system-building experience (not just
-  skills keywords), penalises consulting-only backgrounds and title-chasers, and
-  uses a Gaussian bell curve centered at 7 years. Honeypot detection uses 5
-  independent timeline-consistency checks. Runtime ~30s on CPU, ~2GB RAM.
+  all-MiniLM-L6-v2 sentence embeddings blended 60/40 with rule scores. 
+  Key engineering choices include equalizing behavioral sub-weights for response rate
+  and GitHub activity (0.15 each) to prevent loud networkers from overpowering
+  strong, silent engineers. We also penalise consulting-only backgrounds and
+  extract past relevant roles to avoid appearing hallucinatory in our 
+  automated reasoning generator. Runtime ~30s on CPU, ~2GB RAM.
 
 # ============================================================================
 # Declarations
