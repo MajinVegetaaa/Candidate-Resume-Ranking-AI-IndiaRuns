@@ -13,7 +13,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 def load_model():
     """Load the SentenceTransformer model. Call once at startup."""
     from sentence_transformers import SentenceTransformer
-    return SentenceTransformer('all-MiniLM-L6-v2')
+    return SentenceTransformer('all-mpnet-base-v2')
 
 
 def _build_candidate_text(candidate: dict) -> str:
