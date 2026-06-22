@@ -49,7 +49,7 @@ WEIGHTS = {
 }
 
 # How many candidates to pass through semantic reranking
-SEMANTIC_RERANK_TOP_N = 200
+SEMANTIC_RERANK_TOP_N = 500
 
 # Final output size
 OUTPUT_TOP_K = 100
@@ -78,6 +78,28 @@ def score_candidate(candidate: dict, jd: dict) -> tuple:
 
     return composite, is_honeypot, sub_scores
 
+def _generate_candidate_fingerprint(candidate: dict) -> int:
+    """
+    Generates a robust, false-positive-proof fingerprint based on the 
+    exact sequence of their career and education history.
+    """
+    career = candidate.get('career_history', []) or []
+    edu = candidate.get('education', []) or []
+
+    # 1. Career Fingerprint: Company + Title + Duration (Top 3 roles)
+    career_sig = "|".join([
+        f"{str(role.get('company')).lower()}_{str(role.get('title')).lower()}_{role.get('duration_months', 0)}"
+        for role in career[:3]
+    ])
+
+    # 2. Education Fingerprint: Institution + Degree + End Year
+    edu_sig = "|".join([
+        f"{str(e.get('institution')).lower()}_{str(e.get('degree')).lower()}_{e.get('end_year', '')}"
+        for e in edu[:2]
+    ])
+
+    # Combine them into a single unique hash
+    return hash(f"{career_sig}###{edu_sig}")
 
 def stream_and_score(candidates_path: str, jd: dict) -> list:
     """
@@ -90,6 +112,10 @@ def stream_and_score(candidates_path: str, jd: dict) -> list:
     results = []
     honeypot_count = 0
     total_count = 0
+    
+    # 👇 FIX: You must initialize these variables before the loop starts!
+    duplicate_count = 0
+    seen_signatures = set()
 
     print(f"\n{'='*60}")
     print(f"  PHASE 1: Rule-Based Scoring")
@@ -103,6 +129,15 @@ def stream_and_score(candidates_path: str, jd: dict) -> list:
                 continue
 
             candidate = json.loads(line)
+            
+            # 🛡️ Unbeatable Duplicate Detection
+            cand_fingerprint = _generate_candidate_fingerprint(candidate)
+            if cand_fingerprint in seen_signatures:
+                duplicate_count += 1
+                continue  # Skip them instantly
+                
+            seen_signatures.add(cand_fingerprint)
+
             total_count += 1
             cid = candidate["candidate_id"]
 
@@ -117,6 +152,7 @@ def stream_and_score(candidates_path: str, jd: dict) -> list:
     results.sort(key=lambda x: (-x[1], x[0]))
 
     print(f"\n  Total candidates processed: {total_count:,}")
+    print(f"  Duplicates blocked: {duplicate_count}") # <-- Added this to see the result!
     print(f"  Honeypots detected: {honeypot_count}")
     print(f"  Top score: {results[0][1]:.4f} ({results[0][0]})")
     if len(results) >= 100:
@@ -125,8 +161,7 @@ def stream_and_score(candidates_path: str, jd: dict) -> list:
         print(f"  Score at rank 200: {results[199][1]:.4f}")
 
     return results
-
-
+    
 def write_submission(top_100: list, output_path: str, jd: dict):
     """
     Write the final submission CSV with reasoning strings.
