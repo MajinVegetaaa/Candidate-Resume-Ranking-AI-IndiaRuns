@@ -9,27 +9,19 @@ means honeypot.
 
 from datetime import date, datetime
 
+import yaml
+import os
+
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "ranking_config.yaml")
+with open(CONFIG_PATH, "r") as f:
+    RANKING_CONFIG = yaml.safe_load(f)
 
 # Reference year for timeline calculations (hackathon dataset year)
-CURRENT_YEAR = 2026
+CURRENT_YEAR = RANKING_CONFIG["honeypot"]["dataset_year"]
 
 # Technologies and the year they were first publicly available.
 # Used to detect impossible skill duration claims.
-TECH_BIRTH_YEARS = {
-    'chatgpt': 2022,
-    'llm fine-tuning': 2020,
-    'llm fine tuning': 2020,
-    'langchain': 2022,
-    'lora': 2021,
-    'qlora': 2023,
-    'gpt-4': 2023,
-    'gpt4': 2023,
-    'claude': 2023,
-    'stable diffusion': 2022,
-    'midjourney': 2022,
-    'gemini': 2023,
-}
-
+TECH_BIRTH_YEARS = RANKING_CONFIG["honeypot"]["tech_birth_years"]
 
 def _parse_date(date_str: str) -> date | None:
     """Try common date formats and return a date object, or None."""
@@ -51,7 +43,7 @@ def detect_honeypot(candidate: dict) -> bool:
     """
     try:
         return _detect_honeypot_inner(candidate)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError):
         # Never crash the pipeline on a malformed record.
         return False
 
