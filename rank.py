@@ -15,6 +15,12 @@ import sys
 import time
 import hashlib  # Added for deterministic fingerprinting
 from tqdm import tqdm
+import yaml
+import os
+
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "ranking_config.yaml")
+with open(CONFIG_PATH, "r") as f:
+    RANKING_CONFIG = yaml.safe_load(f)
 
 # ── Config ───────────────────────────────────────────────────────────────
 from config.jd_config import JD_CONFIG
@@ -34,17 +40,11 @@ from pipeline.reasoning_generator import generate_reasoning
 
 
 # ─── Scoring Weights ─────────────────────────────────────────────────────
-WEIGHTS = {
-    "career_fit":       0.35,
-    "skill_auth":       0.25,
-    "behavioral":       0.20,
-    "education":        0.10,
-    "logistics":        0.10,
-}
+WEIGHTS = RANKING_CONFIG["scoring_weights"]
 
-BI_ENCODER_TOP_N = 1500     # Phase 2 Pool
-CROSS_ENCODER_TOP_N = 200   # Phase 3 Pool
-OUTPUT_TOP_K = 100          # Final Output
+BI_ENCODER_TOP_N = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"]["top_n_pool"]
+CROSS_ENCODER_TOP_N = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["top_n_pool"]
+OUTPUT_TOP_K = RANKING_CONFIG["pipeline"]["output"]["top_k"]
 
 
 def score_candidate(candidate: dict, jd: dict) -> tuple:
@@ -132,49 +132,31 @@ def stream_and_score(candidates_path: str, jd: dict) -> list:
     
 def write_submission(all_ranked_candidates: list, output_path: str, jd: dict):
     """
-    FIXED: Processes entire dataset pool first to resolve true boundary tie-breaks 
-    BEFORE cutting off at the final top 100 rows.
+    Writes the top 100 candidates to the CSV.
+    Safely slices the top outputs from Phase 3, avoiding sorting the entire 
+    100,000 pool which would allow un-reranked candidates to bubble up.
     """
     print(f"\n{'='*60}")
     print(f"  PHASE 4: Writing Submission")
     print(f"  Output: {output_path}")
     print(f"{'='*60}\n")
 
-    # Sort everything up front: score descending, candidate_id ascending
-    all_ranked_candidates.sort(key=lambda x: (-x[1], x[0]))
+    # Slice ONLY the top K candidates (as ordered by the final semantic phase)
+    top_candidates = all_ranked_candidates[:OUTPUT_TOP_K]
+
+    # Resolve any rare ties strictly by candidate_id ascending
+    top_candidates.sort(key=lambda x: (-round(x[1], 4), x[0]))
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["candidate_id", "rank", "score", "reasoning"])
-
-        prev_score = float("inf")
-        rows = []
         
-        # Smooth and round all scores safely across the entire pool
-        for cid, score, candidate in all_ranked_candidates:
-            score = min(score, prev_score)
-            score = round(score, 4)
-            prev_score = score
-            rows.append((cid, score, candidate))
-
-        # Group and break ties safely across data groups
-        fixed_rows = []
-        i = 0
-        while i < len(rows):
-            j = i
-            while j < len(rows) and rows[j][1] == rows[i][1]:
-                j += 1
-            group = sorted(rows[i:j], key=lambda x: x[0])
-            fixed_rows.extend(group)
-            i = j
-
-        # Now cleanly cut off exactly at the target 100 row output limit
-        write_count = min(len(fixed_rows), OUTPUT_TOP_K)
-        for rank, (cid, score, candidate) in enumerate(fixed_rows[:write_count], start=1):
+        for rank, (cid, score, candidate) in enumerate(top_candidates, start=1):
+            score_rounded = round(score, 4)
             reason = generate_reasoning(candidate, rank, jd)
-            writer.writerow([cid, rank, f"{score:.4f}", reason])
+            writer.writerow([cid, rank, f"{score_rounded:.4f}", reason])
 
-    print(f"  ✅ Wrote {write_count} candidates to {output_path}")
+    print(f"  ✅ Wrote {len(top_candidates)} candidates to {output_path}")
 
 
 def main():
@@ -201,8 +183,10 @@ def main():
         print(f"  PHASE 2: Bi-Encoder Reranking (top {BI_ENCODER_TOP_N})")
         print(f"{'='*60}\n")
 
-        print("  Loading Bi-Encoder model (all-mpnet-base-v2)...")
-        bi_model = load_bi_encoder()
+        bi_model_name = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"]["model_name"]
+        bi_device = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"].get("device", "cpu")
+        print(f"  Loading Bi-Encoder model ({bi_model_name}) on {bi_device}...")
+        bi_model = load_bi_encoder(bi_model_name, device=bi_device)
 
         phase2_scored = bi_encoder_rerank(
             model=bi_model,
@@ -218,8 +202,10 @@ def main():
         print(f"  PHASE 3: Cross-Encoder Deep Reranking (top {CROSS_ENCODER_TOP_N})")
         print(f"{'='*60}\n")
 
-        print("  Loading Cross-Encoder model (ms-marco-MiniLM-L-6-v2)...")
-        ce_model = load_cross_encoder()
+        ce_model_name = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["model_name"]
+        ce_device = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"].get("device", "cpu")
+        print(f"  Loading Cross-Encoder model ({ce_model_name}) on {ce_device}...")
+        ce_model = load_cross_encoder(ce_model_name, device=ce_device)
 
         final_scored = cross_encoder_rerank(
             model=ce_model,
