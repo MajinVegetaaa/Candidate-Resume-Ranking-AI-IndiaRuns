@@ -1,0 +1,45 @@
+pipeline:
+  phase2_bi_encoder:
+    model_name: "all-mpnet-base-v2"
+    device: "cpu"
+    top_n_pool: 1200
+    blend_weights:
+      rule_score: 0.60
+      semantic_score: 0.40
+    extraction:
+      max_roles: 4
+      max_skills: 15
+
+  phase3_cross_encoder:
+    model_name: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    device: "cpu"
+    top_n_pool: 200
+    blend_weights:
+      prev_score: 0.50
+      semantic_score: 0.50
+
+  output:
+    top_k: 100
+
+scoring_weights:
+  career_fit: 0.35
+  skill_auth: 0.25
+  behavioral: 0.20
+  education: 0.10
+  logistics: 0.10
+
+honeypot:
+  dataset_year: 2026
+  tech_birth_years:
+    chatgpt: 2022
+    llm fine-tuning: 2020
+    llm fine tuning: 2020
+    langchain: 2022
+    lora: 2021
+    qlora: 2023
+    gpt-4: 2023
+    gpt4: 2023
+    claude: 2023
+    stable diffusion: 2022
+    midjourney: 2022
+    gemini: 2023
