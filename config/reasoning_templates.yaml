@@ -1,0 +1,62 @@
+templates:
+  openers:
+    tier1:
+      max_rank: 5
+      options:
+        - "Strong match: {current_title} at {current_company} with {yoe:.1f} years"
+        - "Top candidate \u2014 {yoe:.1f}-year {current_title} at {current_company}"
+        - "Excellent fit: {current_title} ({yoe:.1f} yrs) currently at {current_company}"
+    tier2:
+      max_rank: 15
+      options:
+        - "Solid fit: {current_title} at {current_company} ({yoe:.1f} yrs)"
+        - "{yoe:.1f}-year {current_title} at {current_company} \u2014 strong profile"
+        - "Well-aligned: {current_title} with {yoe:.1f} years at {current_company}"
+    tier3:
+      max_rank: 40
+      options:
+        - "{current_title} at {current_company} ({yoe:.1f} yrs experience)"
+        - "Relevant background: {yoe:.1f}-year {current_title} at {current_company}"
+        - "{current_title} with {yoe:.1f} yrs, currently at {current_company}"
+    tier4:
+      max_rank: 9999
+      options:
+        - "{current_title} at {current_company} ({yoe:.1f} yrs)"
+        - "{yoe:.1f}-year {current_title}, based at {current_company}"
+        - "Currently {current_title} at {current_company} with {yoe:.1f} yrs total"
+
+  career_highlights:
+    past_prefix_a: "past experience: "
+    current_prefix_a: "key experience: "
+    past_prefix_b: "previously: "
+    current_prefix_b: ""
+    past_prefix_c: "former role at {role_company}: "
+    current_prefix_c: "at {role_company}: "
+    formats:
+      format_a: "{prefix_a}{excerpt} ({role_company}, {role_dur}mo)"
+      format_b_with_industry: "{prefix_b}served {role_dur}mo as {role_title} at {role_company}; industry: {role_industry}"
+      format_b_no_industry: "{prefix_b}served {role_dur}mo as {role_title} at {role_company}"
+      format_c_with_desc: "{prefix_c}{first_verb}"
+      format_c_no_desc: "{prefix_b}worked as {role_title} at {role_company} ({role_dur}mo)"
+
+  skills:
+    format_a: "relevant skills: {skill_strs}"
+    format_b: "skills match: {skill_strs}"
+
+rules:
+  gaps:
+    min_rank_for_gaps: 26
+    consulting_message: "consulting-only career history"
+    low_response_rate_threshold: 0.3
+    low_response_message: "low response rate ({response_rate:.0%})"
+    no_response_rank_threshold: 50
+    no_response_message: "no response data"
+    low_yoe_threshold: 4
+    low_yoe_message: "limited experience ({yoe:.1f} yrs)"
+    high_yoe_threshold: 12
+    high_yoe_message: "overqualified concern ({yoe:.1f} yrs vs 5-9 ideal)"
+    foreign_country_rank_threshold: 40
+    foreign_country_message: "located outside India ({country})"
+    high_notice_threshold: 90
+    high_notice_rank_threshold: 50
+    high_notice_message: "long notice period ({notice}d)"
