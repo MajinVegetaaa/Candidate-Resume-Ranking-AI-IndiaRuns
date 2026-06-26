@@ -1,9 +1,9 @@
 # 🏆 Candidate Resume Ranking AI - IndiaRuns Hackathon (Redrob)
 ### Team: Tunday Kebabs
 
-An intelligent, AI-powered candidate ranking system that processes **100,000 profiles in ~65 seconds** to find the absolute best candidates for a Senior AI/ML Ranking Systems Engineer role.
+An intelligent, AI-powered candidate ranking system that processes **100,000 profiles in ~292 seconds**.
 
-This ranker is **100% compliant** with the hackathon constraints (No GPU, No Network, < 5 minutes) and features a completely decoupled configuration system for easy tuning.
+(No GPU, No Network, < 5 minutes)
 
 ---
 
