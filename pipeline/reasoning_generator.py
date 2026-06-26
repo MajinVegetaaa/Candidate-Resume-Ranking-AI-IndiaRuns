@@ -15,17 +15,18 @@ Key design principles:
 
 from config.jd_config import JD_CONFIG, ALL_JD_SKILLS
 
+import yaml
+import os
+
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "reasoning_templates.yaml")
+with open(CONFIG_PATH, "r") as f:
+    REASONING_TEMPLATES = yaml.safe_load(f)
+
 # Keywords used to identify the most JD-relevant career role.
-_RELEVANCE_KEYWORDS = {
-    'ranking', 'search', 'recommendation', 'retrieval', 'ml',
-    'machine learning', 'nlp', 'data science', 'deep learning',
-    'information retrieval', 'personalization', 'relevance',
-    'embeddings', 'vector', 'inference', 'pipeline',
-}
+_RELEVANCE_KEYWORDS = set(JD_CONFIG.get("system_building_keywords", []))
 
 # Consulting firm names for gap detection
-_CONSULTING_FIRMS = {"tcs", "infosys", "wipro", "accenture", "cognizant",
-                     "capgemini", "hcl", "tech mahindra"}
+_CONSULTING_FIRMS = set(JD_CONFIG.get("consulting_firms", []))
 
 
 def _truncate_text(text: str, max_len: int = 120) -> str:
@@ -114,33 +115,19 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
     parts: list[str] = []
 
     # ── 1. Identity with rank-aware opener ──────────────────────────
-    if rank <= 5:
-        openers = [
-            f"Strong match: {current_title} at {current_company} with {yoe:.1f} years",
-            f"Top candidate — {yoe:.1f}-year {current_title} at {current_company}",
-            f"Excellent fit: {current_title} ({yoe:.1f} yrs) currently at {current_company}",
-        ]
-    elif rank <= 15:
-        openers = [
-            f"Solid fit: {current_title} at {current_company} ({yoe:.1f} yrs)",
-            f"{yoe:.1f}-year {current_title} at {current_company} — strong profile",
-            f"Well-aligned: {current_title} with {yoe:.1f} years at {current_company}",
-        ]
-    elif rank <= 40:
-        openers = [
-            f"{current_title} at {current_company} ({yoe:.1f} yrs experience)",
-            f"Relevant background: {yoe:.1f}-year {current_title} at {current_company}",
-            f"{current_title} with {yoe:.1f} yrs, currently at {current_company}",
-        ]
-    else:
-        openers = [
-            f"{current_title} at {current_company} ({yoe:.1f} yrs)",
-            f"{yoe:.1f}-year {current_title}, based at {current_company}",
-            f"Currently {current_title} at {current_company} with {yoe:.1f} yrs total",
-        ]
-    parts.append(openers[variant % len(openers)])
+    openers = REASONING_TEMPLATES["templates"]["openers"]["tier4"]["options"]
+    if rank <= REASONING_TEMPLATES["templates"]["openers"]["tier1"]["max_rank"]:
+        openers = REASONING_TEMPLATES["templates"]["openers"]["tier1"]["options"]
+    elif rank <= REASONING_TEMPLATES["templates"]["openers"]["tier2"]["max_rank"]:
+        openers = REASONING_TEMPLATES["templates"]["openers"]["tier2"]["options"]
+    elif rank <= REASONING_TEMPLATES["templates"]["openers"]["tier3"]["max_rank"]:
+        openers = REASONING_TEMPLATES["templates"]["openers"]["tier3"]["options"]
+
+    opener_template = openers[variant % len(openers)]
+    parts.append(opener_template.format(current_title=current_title, current_company=current_company, yoe=yoe))
 
     # ── 2. Career highlight — varied formats ────────────────────────
+    hl_templates = REASONING_TEMPLATES["templates"]["career_highlights"]
     if relevant_role:
         role_title = relevant_role.get('title', '') or ''
         role_company = relevant_role.get('company', '') or ''
@@ -149,26 +136,27 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
         role_industry = relevant_role.get('industry', '') or ''
 
         is_past_role = (role_company.lower() != current_company.lower())
-        prefix_a = "past experience: " if is_past_role else "key experience: "
-        prefix_b = "previously: " if is_past_role else ""
-        prefix_c = f"former role at {role_company}: " if is_past_role else f"at {role_company}: "
+        prefix_a = hl_templates["past_prefix_a"] if is_past_role else hl_templates["current_prefix_a"]
+        prefix_b = hl_templates["past_prefix_b"] if is_past_role else hl_templates["current_prefix_b"]
+        prefix_c = hl_templates["past_prefix_c"].format(role_company=role_company) if is_past_role else hl_templates["current_prefix_c"].format(role_company=role_company)
 
         if variant % 3 == 0 and role_desc:
             # Format A: Description excerpt
             excerpt = _truncate_text(role_desc, 110)
-            parts.append(f"{prefix_a}{excerpt} ({role_company}, {role_dur}mo)")
+            parts.append(hl_templates["formats"]["format_a"].format(prefix_a=prefix_a, excerpt=excerpt, role_company=role_company, role_dur=role_dur))
         elif variant % 3 == 1:
             # Format B: Role + company + duration focus
-            parts.append(f"{prefix_b}served {role_dur}mo as {role_title} at {role_company}")
             if role_industry:
-                parts.append(f"industry: {role_industry}")
+                parts.append(hl_templates["formats"]["format_b_with_industry"].format(prefix_b=prefix_b, role_dur=role_dur, role_title=role_title, role_company=role_company, role_industry=role_industry))
+            else:
+                parts.append(hl_templates["formats"]["format_b_no_industry"].format(prefix_b=prefix_b, role_dur=role_dur, role_title=role_title, role_company=role_company))
         else:
             # Format C: Company + accomplishment hint
             if role_desc:
-                first_verb = role_desc.split('.')[0][:80]
-                parts.append(f"{prefix_c}{_truncate_text(first_verb, 80)}")
+                first_verb = _truncate_text(role_desc.split('.')[0][:80], 80)
+                parts.append(hl_templates["formats"]["format_c_with_desc"].format(prefix_c=prefix_c, first_verb=first_verb))
             else:
-                parts.append(f"{prefix_b}worked as {role_title} at {role_company} ({role_dur}mo)")
+                parts.append(hl_templates["formats"]["format_c_no_desc"].format(prefix_b=prefix_b, role_title=role_title, role_company=role_company, role_dur=role_dur))
     elif career:
         latest = career[0]
         industry = latest.get('industry', '') or ''
@@ -176,6 +164,7 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
             parts.append(f"background in {industry}")
 
     # ── 3. Skills — specific names with details ─────────────────────
+    skill_templates = REASONING_TEMPLATES["templates"]["skills"]
     if matched_skills:
         if variant % 2 == 0:
             # Format A: Names with proficiency
@@ -186,7 +175,7 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
                     skill_strs.append(f"{s['name']} ({prof})")
                 else:
                     skill_strs.append(s['name'])
-            parts.append("relevant skills: " + ", ".join(skill_strs))
+            parts.append(skill_templates["format_a"].format(skill_strs=", ".join(skill_strs)))
         else:
             # Format B: Names with duration
             skill_strs = []
@@ -196,7 +185,7 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
                     skill_strs.append(f"{s['name']} ({dur}mo)")
                 else:
                     skill_strs.append(s['name'])
-            parts.append("skills match: " + ", ".join(skill_strs))
+            parts.append(skill_templates["format_b"].format(skill_strs=", ".join(skill_strs)))
 
     # ── 4. Behavioral signals — specific values ─────────────────────
     beh_notes = []
@@ -226,37 +215,38 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
     if loc_parts:
         parts.append(", ".join(loc_parts))
 
-    # ── 6. Gaps — only for rank > 25, with variety ──────────────────
-    if rank > 25:
+    # ── 6. Gaps — using rules from config ──────────────────
+    gap_rules = REASONING_TEMPLATES["rules"]["gaps"]
+    if rank >= gap_rules["min_rank_for_gaps"]:
         gaps = []
         # Consulting-only
         if career and all(
             (r.get('company', '') or '').lower() in _CONSULTING_FIRMS
             for r in career
         ):
-            gaps.append("consulting-only career history")
+            gaps.append(gap_rules["consulting_message"])
 
         # Low response rate
-        if response_rate < 0.3 and response_rate > 0:
-            gaps.append(f"low response rate ({response_rate:.0%})")
-        elif response_rate == 0 and rank > 50:
-            gaps.append("no response data")
+        if response_rate < gap_rules["low_response_rate_threshold"] and response_rate > 0:
+            gaps.append(gap_rules["low_response_message"].format(response_rate=response_rate))
+        elif response_rate == 0 and rank > gap_rules["no_response_rank_threshold"]:
+            gaps.append(gap_rules["no_response_message"])
 
         # Experience concerns
-        if yoe < 4:
-            gaps.append(f"limited experience ({yoe:.1f} yrs)")
-        elif yoe > 12:
-            gaps.append(f"overqualified concern ({yoe:.1f} yrs vs 5-9 ideal)")
+        if yoe < gap_rules["low_yoe_threshold"]:
+            gaps.append(gap_rules["low_yoe_message"].format(yoe=yoe))
+        elif yoe > gap_rules["high_yoe_threshold"]:
+            gaps.append(gap_rules["high_yoe_message"].format(yoe=yoe))
 
         # Location concerns
         loc_lower = location.lower() if location else ''
         country_lower = country.lower()
-        if country_lower and country_lower != 'india' and rank > 40:
-            gaps.append(f"located outside India ({country})")
+        if country_lower and country_lower != 'india' and rank > gap_rules["foreign_country_rank_threshold"]:
+            gaps.append(gap_rules["foreign_country_message"].format(country=country))
 
         # High notice period (general)
-        if notice is not None and notice > 90 and rank > 50:
-            gaps.append(f"long notice period ({notice}d)")
+        if notice is not None and notice > gap_rules["high_notice_threshold"] and rank > gap_rules["high_notice_rank_threshold"]:
+            gaps.append(gap_rules["high_notice_message"].format(notice=notice))
 
         if gaps:
             parts.append("concerns: " + ", ".join(gaps[:2]))
