@@ -90,6 +90,12 @@ def _detect_honeypot_inner(candidate: dict) -> bool:
     if career_history and all(j.get("duration_months", 12) < 12 for j in career_history):
         flags += 2
 
+    # G7: Copy-Pasted Job Descriptions
+    if career_history:
+        descs = [j.get("description", "").strip() for j in career_history if j.get("description", "").strip()]
+        if len(descs) > 1 and len(descs) != len(set(descs)):
+            flags += 2
+
     # G3: Honeypot Transition (Current tech, all prior non-tech)
     current_title = profile.get("current_title", "")
     if len(career_history) >= 2 and _classify_title(current_title) in ("ml_search", "swe", "data_cloud"):
