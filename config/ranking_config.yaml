@@ -2,7 +2,7 @@ pipeline:
   phase2_bi_encoder:
     model_name: "all-mpnet-base-v2"
     device: "cpu"
-    top_n_pool: 1200
+    top_n_pool: 800
     blend_weights:
       rule_score: 0.60
       semantic_score: 0.40
@@ -22,11 +22,11 @@ pipeline:
     top_k: 100
 
 scoring_weights:
-  career_fit: 0.35
-  skill_auth: 0.25
-  behavioral: 0.20
-  education: 0.10
-  logistics: 0.10
+  career_fit: 0.50
+  skill_auth: 0.15
+  behavioral: 0.35
+  education: 0.00
+  logistics: 0.00
 
 honeypot:
   dataset_year: 2026

@@ -1,165 +1,250 @@
 """
-skill_authenticity.py — Skill Authenticity Scoring Dimension (weight: 0.25)
+skill_authenticity.py — Skill Fit Scoring (Phase 1)
 
-Unlike a naive "count matching skills" approach, this module evaluates how
-*authentic* each claimed skill is by combining four signals:
+Weighted-additive scorer with 3 sub-scores:
 
-    1. Proficiency level   (beginner → expert)
-    2. Endorsement count   (log-scaled)
-    3. Duration of use     (months, capped at 48)
-    4. Assessment score    (from Redrob platform signals)
+    skill_fit = 0.45×relevance + 0.30×depth + 0.25×summary
 
-It also detects **keyword stuffing** — candidates who list many skills at
-beginner level with zero endorsements and zero duration. When ≥ 5 such
-skills are detected, the final score is heavily penalised (× 0.3).
+Sub-scores:
+    relevance — Which JD-relevant skill categories are present
+    depth     — Proficiency level + tenure combined
+    summary   — Profile summary technical quality + cert bonus
 
-Must-have skills receive a 1.5× multiplier before aggregation so they
-carry more weight than nice-to-have skills.
+No gate checks here — gates live exclusively in honeypot_detector.py.
 """
 
-import math
+from typing import Any, Dict, List
 
-from config.jd_config import JD_CONFIG, ALL_JD_SKILLS
 
-# ── Proficiency mapping ──────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+# SKILL CATEGORY SETS
+# ══════════════════════════════════════════════════════════════════════════
 
-PROFICIENCY_MAP: dict[str, float] = {
-    "beginner": 0.25,
-    "intermediate": 0.50,
-    "advanced": 0.75,
-    "expert": 1.00,
+RETRIEVAL_VECTOR = {
+    "faiss", "qdrant", "pinecone", "weaviate", "milvus",
+    "elasticsearch", "opensearch", "haystack",
+    "information retrieval", "vector database",
+    "vector search", "hybrid search", "dense retrieval",
+}
+
+EMBEDDINGS_TRANSFORMERS = {
+    "sentence transformers", "sentence-transformers",
+    "bge", "e5", "hugging face transformers",
+    "huggingface transformers", "embeddings", "embedding",
+    "text embeddings",
+}
+
+RANKING_RECSYS = {
+    "recommendation systems", "recommender systems",
+    "learning to rank", "learning-to-rank", "xgboost",
+    "lightgbm", "feature engineering", "ranking",
+    "reranking", "re-ranking", "ndcg",
+}
+
+ML_CORE = {
+    "python", "scikit-learn", "sklearn", "tensorflow",
+    "pytorch", "mlflow", "weights & biases", "wandb",
+    "machine learning", "deep learning", "neural networks",
+}
+
+LLM_FINETUNE = {
+    "fine-tuning llms", "finetuning", "lora", "qlora",
+    "peft", "langchain", "rag",
+    "retrieval augmented generation", "mlops",
+    "large language models", "generative ai",
+}
+
+DATA_ENGINEERING = {
+    "spark", "airflow", "kafka", "dbt", "databricks",
+    "etl", "data pipelines", "snowflake", "bigquery",
+    "apache beam", "hadoop", "flink", "pyspark",
+}
+
+# Union of all JD-relevant skill names (for depth scoring)
+JD_RELEVANT = (
+    RETRIEVAL_VECTOR | EMBEDDINGS_TRANSFORMERS
+    | RANKING_RECSYS | ML_CORE | LLM_FINETUNE
+)
+
+# ── Summary keyword sets ─────────────────────────────────────────────
+
+SUMMARY_DOMAIN = {
+    "retrieval", "embedding", "embeddings", "ndcg", "a/b test",
+    "ranking system", "recommendation system", "vector search",
+    "information retrieval", "learning to rank", "rerank",
+    "sentence transformer", "faiss", "pinecone", "elasticsearch",
+    "feature pipeline", "production ml", "ranking model", "search ranking",
+}
+
+SUMMARY_ML = {
+    "machine learning", "deep learning", "neural network",
+    "artificial intelligence", "data science", "model training",
+    "nlp", "natural language processing", "large language model",
+}
+
+SUMMARY_BOILERPLATE = {
+    "driving business outcomes", "helping teams scale",
+    "built and led teams", "owned kpis",
+    "driving outcomes through", "results-driven professional",
+    "passionate about delivering value", "proven track record of",
+    "cross-functional stakeholder", "managed relationships",
+}
+
+# ── Certification keyword sets ────────────────────────────────────────
+
+ML_CERT_KEYWORDS = {
+    "machine learning specialty", "ml specialty",
+    "professional machine learning engineer",
+    "deeplearning.ai", "fast.ai", "tensorflow developer",
+    "hugging face", "pytorch certification", "aws ml",
+}
+
+CLOUD_CERT_KEYWORDS = {
+    "aws certified cloud practitioner", "azure fundamentals",
+    "gcp associate", "aws solutions architect",
+    "google cloud professional data engineer", "cloud practitioner",
 }
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ══════════════════════════════════════════════════════════════════════════
+
+def _n(s: str) -> str:
+    return s.lower().strip() if s else ""
 
 
-def _skill_matches(skill_name: str, reference_list: list[str]) -> bool:
-    """Case-insensitive substring match of *skill_name* against any entry
-    in *reference_list*."""
-    skill_lower = skill_name.lower().strip()
-    for ref in reference_list:
-        ref_lower = ref.lower().strip()
-        if skill_lower in ref_lower or ref_lower in skill_lower:
-            return True
-    return False
+# ══════════════════════════════════════════════════════════════════════════
+# SUB-SCORE 1: RELEVANCE (weight 0.45)
+# ══════════════════════════════════════════════════════════════════════════
+
+def _score_relevance(skills: List[dict]) -> float:
+    """Which JD-relevant skill categories are present."""
+    if not skills:
+        return 0.05
+
+    names = {_n(s.get("name", "")) for s in skills}
+    has_r  = bool(names & RETRIEVAL_VECTOR)
+    has_e  = bool(names & EMBEDDINGS_TRANSFORMERS)
+    has_rk = bool(names & RANKING_RECSYS)
+    has_ml = bool(names & ML_CORE)
+    has_ll = bool(names & LLM_FINETUNE)
+    has_de = bool(names & DATA_ENGINEERING)
+
+    if has_r and has_e:               return 1.00
+    if (has_r or has_e) and has_rk:   return 0.85
+    if has_r or has_e:                return 0.70
+    if has_rk and has_ml:             return 0.55
+    if has_rk or has_ml:              return 0.40
+    if has_ll or has_de:              return 0.25
+    return 0.05
 
 
-def _per_skill_authenticity(
-    skill: dict,
-    assessment_scores: dict[str, float],
-) -> float:
-    """Compute authenticity score for a single candidate skill.
+# ══════════════════════════════════════════════════════════════════════════
+# SUB-SCORE 2: DEPTH (weight 0.30) — merges proficiency + tenure
+# ══════════════════════════════════════════════════════════════════════════
 
-    Returns a value in [0.0, 1.0] by equally weighting:
-        proficiency  (0.25)
-        endorsements (0.25)
-        duration     (0.25)
-        assessment   (0.25)
-    """
-    # 1. Proficiency
-    prof_label: str = (skill.get("proficiency") or "").lower().strip()
-    proficiency: float = PROFICIENCY_MAP.get(prof_label, 0.0)
+def _score_depth(skills: List[dict]) -> float:
+    """Combined proficiency level + tenure on JD-relevant skills."""
+    relevant = [s for s in skills if _n(s.get("name", "")) in JD_RELEVANT]
+    if not relevant:
+        return 0.10
 
-    # 2. Endorsements — log-scaled, capped at 1.0
-    endorsements_raw: int = skill.get("endorsements", 0) or 0
-    endorsements: float = min(math.log(1 + endorsements_raw) / 4.0, 1.0)
+    # Proficiency component (60%)
+    expert   = sum(1 for s in relevant if s.get("proficiency") == "expert")
+    advanced = sum(1 for s in relevant if s.get("proficiency") == "advanced")
+    inter    = sum(1 for s in relevant if s.get("proficiency") == "intermediate")
 
-    # 3. Duration — months / 48, capped at 1.0
-    duration_months: float = skill.get("duration_months", 0) or 0
-    duration: float = min(duration_months / 48.0, 1.0)
+    if expert >= 2:                   prof = 1.00
+    elif expert == 1 or advanced >= 3: prof = 0.80
+    elif advanced >= 1:               prof = 0.55
+    elif inter >= 1:                  prof = 0.35
+    else:                             prof = 0.15
 
-    # 4. Assessment from Redrob signals
-    skill_name_lower: str = skill.get("name", "").lower().strip()
-    assessment: float = 0.0
-    for key, val in assessment_scores.items():
-        if key.lower().strip() == skill_name_lower:
-            assessment = min(val / 100.0, 1.0)
-            break
+    # Tenure component (40%)
+    durations = [s.get("duration_months", 0) for s in relevant if s.get("duration_months", 0) > 0]
+    if not durations:
+        ten = 0.15
+    else:
+        avg = sum(durations) / len(durations)
+        if avg > 36:   ten = 1.00
+        elif avg >= 18: ten = 0.75
+        elif avg >= 6:  ten = 0.45
+        else:           ten = 0.15
 
-    return 0.25 * proficiency + 0.25 * endorsements + 0.25 * duration + 0.25 * assessment
-
-
-def _is_keyword_stuffed(skill: dict) -> bool:
-    """Detect a single stuffed-keyword entry: beginner + 0 endorsements +
-    0/missing duration."""
-    prof: str = (skill.get("proficiency") or "").lower().strip()
-    endorsements: int = skill.get("endorsements", 0) or 0
-    duration: float = skill.get("duration_months", 0) or 0
-
-    return prof == "beginner" and endorsements == 0 and duration == 0
+    return round(0.60 * prof + 0.40 * ten, 4)
 
 
-# ── Public API ───────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+# SUB-SCORE 3: SUMMARY (weight 0.25) — summary quality + cert bonus
+# ══════════════════════════════════════════════════════════════════════════
 
+def _score_summary(summary: str, certifications: List[dict]) -> float:
+    """Profile summary technical quality + certification bonus."""
+    # Summary component (base)
+    if not summary:
+        base = 0.05
+    else:
+        text = _n(summary)
+        domain_hits     = sum(1 for kw in SUMMARY_DOMAIN if kw in text)
+        ml_hits         = sum(1 for kw in SUMMARY_ML if kw in text)
+        boilerplate_hits = sum(1 for kw in SUMMARY_BOILERPLATE if kw in text)
+
+        if boilerplate_hits >= 1 and domain_hits == 0 and ml_hits == 0:
+            base = 0.05
+        elif domain_hits >= 3: base = 1.00
+        elif domain_hits >= 1: base = 0.75
+        elif ml_hits >= 2:     base = 0.55
+        elif ml_hits >= 1:     base = 0.35
+        else:                  base = 0.10
+
+    # Cert bonus (additive, +0.10 for ML cert, +0.05 for cloud cert)
+    cert_bonus = 0.0
+    if certifications:
+        for cert in certifications:
+            combined = _n(cert.get("name", "") + " " + cert.get("issuer", ""))
+            if any(kw in combined for kw in ML_CERT_KEYWORDS):
+                cert_bonus = 0.10
+                break
+        if cert_bonus == 0.0:
+            for cert in certifications:
+                if any(kw in _n(cert.get("name", "")) for kw in CLOUD_CERT_KEYWORDS):
+                    cert_bonus = 0.05
+                    break
+
+    return round(min(1.0, base + cert_bonus), 4)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# PUBLIC API
+# ══════════════════════════════════════════════════════════════════════════
 
 def score_skill_authenticity(candidate: dict, jd: dict) -> float:
-    """Compute skill-authenticity score for *candidate*.
+    """Compute skill_fit using weighted additive formula.
+
+    skill_fit = 0.45×relevance + 0.30×depth + 0.25×summary
+
+    No gate checks — gates live exclusively in honeypot_detector.py.
 
     Parameters
     ----------
     candidate : dict
-        Candidate profile.  Expected keys:
-        - ``skills``: list of dicts each with ``name``, ``proficiency``,
-          ``endorsements``, ``duration_months``.
-        - ``redrob_signals.skill_assessment_scores``: dict mapping skill
-          names to numeric scores (0-100).
+        Candidate profile.
     jd : dict
-        Job-description config (typically ``JD_CONFIG``).
+        Job-description config (JD_CONFIG).
 
     Returns
     -------
     float
         Score in [0.0, 1.0].
     """
-    must_have: list[str] = jd.get("must_have_skills", [])
-    nice_to_have: list[str] = jd.get("nice_to_have_skills", [])
+    skills  = candidate.get("skills", [])
+    summary = candidate.get("profile", {}).get("summary", "")
+    certs   = candidate.get("certifications", [])
 
-    # Assessment scores from Redrob platform signals
-    redrob_signals: dict = candidate.get("redrob_signals") or {}
-    assessment_scores: dict[str, float] = redrob_signals.get(
-        "skill_assessment_scores", {}
-    )
+    rel   = _score_relevance(skills)
+    dep   = _score_depth(skills)
+    summ  = _score_summary(summary, certs)
 
-    candidate_skills: list[dict] = candidate.get("skills") or []
-
-    weighted_auth_sum: float = 0.0
-    keyword_stuff_count: int = 0
-
-    for skill in candidate_skills:
-        skill_name: str = skill.get("name", "")
-
-        is_must_have: bool = _skill_matches(skill_name, must_have)
-        is_nice_to_have: bool = _skill_matches(skill_name, nice_to_have)
-
-        if not (is_must_have or is_nice_to_have):
-            continue  # skill doesn't match any JD requirement
-
-        # Per-skill authenticity
-        auth: float = _per_skill_authenticity(skill, assessment_scores)
-
-        # Must-have skills get a 1.5× boost
-        if is_must_have:
-            auth *= 1.5
-
-        weighted_auth_sum += auth
-
-        # Keyword-stuffing detection (only for matching skills)
-        if _is_keyword_stuffed(skill):
-            keyword_stuff_count += 1
-
-    # Normalize by matched skills count (capped at 10) rather than total
-    # must-have list size (~30). Prevents score compression.
-    matched_count = sum(
-        1 for skill in candidate_skills
-        if _skill_matches(skill.get('name', ''), must_have)
-        or _skill_matches(skill.get('name', ''), nice_to_have)
-    )
-    denominator: int = min(max(matched_count, 1), 10)
-    base: float = weighted_auth_sum / denominator
-
-    # Keyword-stuffing penalty
-    if keyword_stuff_count >= 5:
-        base *= 0.3
-
-    return round(min(max(base, 0.0), 1.0), 4)
+    score = 0.45 * rel + 0.30 * dep + 0.25 * summ
+    return round(min(1.0, max(0.0, score)), 4)
