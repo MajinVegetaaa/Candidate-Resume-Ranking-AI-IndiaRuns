@@ -28,46 +28,24 @@ W_WORK_MODE   = 0.25
 # ── public entry point ───────────────────────────────────────────────
 
 def score_logistics(candidate: dict, jd: dict) -> float:
-    """Return a 0.0-1.0 logistics fit score for *candidate* vs *jd*.
-
-    Combines location match, notice-period feasibility, and work-mode
-    alignment with fixed weights.
+    """
+    Evaluates if the candidate meets the strict logistical requirements of the JD.
+    Uses a 'Kill Switch' (-100.0) to instantly disqualify candidates who cannot 
+    legitimately be hired based on location or notice period.
     """
     profile = candidate.get("profile", {})
     signals = candidate.get("redrob_signals", {})
-
-    # --- Location ---
-    country = (profile.get("country", "") or "").lower().strip()
-    location = (profile.get("location", "") or "").lower().strip()
-    willing = signals.get("willing_to_relocate", False)
-
-    if country == "india":
-        if any(loc in location for loc in PREFERRED_LOCATIONS):
-            loc_score = 1.0
-        elif any(loc in location for loc in ACCEPTABLE_LOCATIONS):
-            loc_score = 0.7
-        else:
-            loc_score = 0.4 + (0.2 if willing else 0.0)
-    else:
-        loc_score = 0.3 if willing else 0.1
-
-    # --- Notice period ---
-    days = signals.get("notice_period_days", 90)
-    if days <= 30:
-        notice_score = 1.0
-    elif days <= 60:
-        notice_score = 0.7
-    elif days <= 90:
-        notice_score = 0.4
-    else:
-        notice_score = 0.2
-
-    # --- Work mode ---
-    mode = (signals.get("preferred_work_mode", "") or "").lower().strip()
-    if mode in ("hybrid", "flexible", "onsite"):
-        mode_score = 1.0
-    else:
-        mode_score = 0.5
-
-    final = W_LOCATION * loc_score + W_NOTICE * notice_score + W_WORK_MODE * mode_score
-    return round(min(max(final, 0.0), 1.0), 4)
+    
+    location = str(profile.get("location", "")).lower()
+    
+    in_target_city = "pune" in location or "noida" in location
+    will_relocate = bool(signals.get("willing_to_relocate", False))
+    
+    if not in_target_city and not will_relocate:
+        return -100.0  
+        
+    notice_days = signals.get("notice_period_days", 0)
+    if notice_days > 30:
+        return -100.0
+        
+    return 1.0
