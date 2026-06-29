@@ -56,6 +56,7 @@ def bi_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_n: 
 
     similarities = cosine_similarity(jd_embedding, candidate_embeddings)[0]
     normalized = np.clip(similarities, 0.0, 1.0)
+    normalized = np.nan_to_num(normalized, nan=0.0)
 
     rule_weight = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"]["blend_weights"]["rule_score"]
     semantic_weight = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"]["blend_weights"]["semantic_score"]
@@ -83,6 +84,7 @@ def cross_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_
     
     # Normalize logits to 0-1 using Sigmoid function so we can blend it
     norm_ce_scores = 1 / (1 + np.exp(-ce_scores))
+    norm_ce_scores = np.nan_to_num(norm_ce_scores, nan=0.0)
 
     prev_weight = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["blend_weights"]["prev_score"]
     semantic_weight = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["blend_weights"]["semantic_score"]
