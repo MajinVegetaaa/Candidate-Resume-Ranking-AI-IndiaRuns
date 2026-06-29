@@ -2,7 +2,7 @@ pipeline:
   phase2_bi_encoder:
     model_name: "all-mpnet-base-v2"
     device: "cpu"
-    top_n_pool: 800
+    top_n_pool: 1000
     blend_weights:
       rule_score: 0.60
       semantic_score: 0.40
