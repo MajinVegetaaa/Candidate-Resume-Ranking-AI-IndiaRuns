@@ -55,7 +55,16 @@ def bi_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_n: 
     candidate_embeddings = model.encode(candidate_texts, batch_size=32)
 
     similarities = cosine_similarity(jd_embedding, candidate_embeddings)[0]
-    normalized = np.clip(similarities, 0.0, 1.0)
+    similarities = np.nan_to_num(similarities, nan=0.0)
+    
+    # Min-Max scaling to map the pool's scores to the full 0.0 - 1.0 range
+    min_sim = np.min(similarities)
+    max_sim = np.max(similarities)
+    if max_sim > min_sim:
+        normalized = (similarities - min_sim) / (max_sim - min_sim)
+    else:
+        normalized = np.zeros_like(similarities)
+        
     normalized = np.nan_to_num(normalized, nan=0.0)
 
     rule_weight = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"]["blend_weights"]["rule_score"]
@@ -81,9 +90,16 @@ def cross_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_
     
     # Predict yields raw logits (can be negative or positive)
     ce_scores = model.predict(pairs)
+    ce_scores = np.nan_to_num(ce_scores, nan=0.0)
     
-    # Normalize logits to 0-1 using Sigmoid function so we can blend it
-    norm_ce_scores = 1 / (1 + np.exp(-ce_scores))
+    # Min-Max scaling to map the logits directly to 0.0 - 1.0 range
+    min_ce = np.min(ce_scores)
+    max_ce = np.max(ce_scores)
+    if max_ce > min_ce:
+        norm_ce_scores = (ce_scores - min_ce) / (max_ce - min_ce)
+    else:
+        norm_ce_scores = np.zeros_like(ce_scores)
+        
     norm_ce_scores = np.nan_to_num(norm_ce_scores, nan=0.0)
 
     prev_weight = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["blend_weights"]["prev_score"]
