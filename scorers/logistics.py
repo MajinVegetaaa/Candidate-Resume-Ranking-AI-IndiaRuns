@@ -1,51 +1,51 @@
 """
 Logistics Fit Scorer
 =====================
-Evaluates how well a candidate's logistics — location, notice
-period, and preferred work mode — align with the job requirements.
+Evaluates how well a candidate's logistics — notice period, work mode,
+and relocation willingness — align with the strict job requirements.
+
+Note: Location is already hard-gated in pipeline/honeypot_detector.py.
+This scorer is a soft scorer evaluating availability/friction for those who survive.
 
 Module weight in final ranking: 0.10
 """
 
 from config.jd_config import JD_CONFIG
 
-# ── location buckets ─────────────────────────────────────────────────
-PREFERRED_LOCATIONS = {"noida", "pune"}
-
-ACCEPTABLE_LOCATIONS = {
-    "hyderabad", "mumbai", "delhi", "ncr",
-    "gurgaon", "gurugram",
-    "bangalore", "bengaluru",
-    "chennai", "kolkata",
-}
-
 # ── sub-score weights ───────────────────────────────────────────────
-W_LOCATION    = 0.40
-W_NOTICE      = 0.35
-W_WORK_MODE   = 0.25
+W_NOTICE      = 0.55
+W_WORK_MODE   = 0.45
 
-
-# ── public entry point ───────────────────────────────────────────────
 
 def score_logistics(candidate: dict, jd: dict) -> float:
     """
-    Evaluates if the candidate meets the strict logistical requirements of the JD.
-    Uses a 'Kill Switch' (-100.0) to instantly disqualify candidates who cannot 
-    legitimately be hired based on location or notice period.
+    Computes a 0.0 to 1.0 logistics score using a delta-additive model.
+    Base score is 0.50. Deltas are added based on notice period and work mode.
     """
     profile = candidate.get("profile", {})
     signals = candidate.get("redrob_signals", {})
     
-    location = str(profile.get("location", "")).lower()
-    
-    in_target_city = "pune" in location or "noida" in location
-    will_relocate = bool(signals.get("willing_to_relocate", False))
-    
-    if not in_target_city and not will_relocate:
-        return -100.0  
-        
-    notice_days = signals.get("notice_period_days", 0)
-    if notice_days > 30:
-        return -100.0
-        
-    return 1.0
+    delta = 0.0
+
+    # 1. Notice Period (W = 55%)
+    # JD explicitly requires max 30 days. High friction otherwise.
+    notice = signals.get("notice_period_days", 90)
+    if notice <= 30:    delta += 0.30    # JD preferred max — ideal
+    elif notice <= 60:  delta -= 0.15    # Moderate delay — manageable
+    elif notice <= 90:  delta -= 0.30    # JD explicitly flags this as a problem
+    else:               delta -= 0.45    # Severely delays hiring velocity
+
+    # 2. Preferred Work Mode (W = 45%)
+    # JD explicitly requires hybrid.
+    mode = str(signals.get("preferred_work_mode", "")).lower()
+    if mode == "hybrid":
+        delta += 0.20    # Exact match
+    elif mode == "flexible":
+        delta += 0.10    # Can adapt
+    elif mode == "onsite":
+        delta += 0.05    # Over-committed but complies
+    elif mode == "remote":
+        delta -= 0.25    # Direct conflict with JD
+
+    score = 0.50 + delta
+    return round(max(0.0, min(1.0, score)), 4)

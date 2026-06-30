@@ -22,6 +22,20 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "ranking_config.
 with open(CONFIG_PATH, "r") as f:
     RANKING_CONFIG = yaml.safe_load(f)
 
+
+def load_jd_text(jd_path: str) -> str:
+    """Read the raw JD text directly from the .docx file.
+    Falls back to an empty string on failure."""
+    try:
+        from docx import Document
+        doc = Document(jd_path)
+        text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        print(f"  ✅ Loaded JD from {jd_path} ({len(text):,} chars)")
+        return text
+    except Exception as e:
+        print(f"  ⚠  Could not read JD docx ({e}). Falling back to empty string.")
+        return ""
+
 # ── Config ───────────────────────────────────────────────────────────────
 from config.jd_config import JD_CONFIG
 
@@ -162,6 +176,8 @@ def write_submission(all_ranked_candidates: list, output_path: str, jd: dict):
 def main():
     parser = argparse.ArgumentParser(description="Redrob Hackathon — Intelligent Candidate Ranker")
     parser.add_argument("--candidates", type=str, default="./candidates.jsonl")
+    parser.add_argument("--jd", type=str, default="../India_runs_data_and_ai_challenge/job_description.docx",
+                        help="Path to the job_description.docx file")
     parser.add_argument("--out", type=str, default="./output/Tunday_Kebabs.csv")
     parser.add_argument("--no-semantic", action="store_true")
     args = parser.parse_args()
@@ -172,6 +188,8 @@ def main():
     print("  Redrob Hackathon — Intelligent Candidate Ranker")
     print("=" * 60)
 
+    # ─── Load Raw JD Text for Semantic Phases ────────────────────────────
+    jd_text = load_jd_text(args.jd)
     # ─── Phase 1: Stream & Score ─────────────────────────────────────────
     all_scored = stream_and_score(args.candidates, JD_CONFIG)
     phase1_time = time.time() - start_time
@@ -190,7 +208,7 @@ def main():
 
         phase2_scored = bi_encoder_rerank(
             model=bi_model,
-            jd_text=JD_CONFIG["jd_text_for_embedding"],
+            jd_text=jd_text,
             candidates_with_scores=all_scored,
             top_n=BI_ENCODER_TOP_N,
         )
@@ -209,7 +227,7 @@ def main():
 
         final_scored = cross_encoder_rerank(
             model=ce_model,
-            jd_text=JD_CONFIG["jd_text_for_embedding"],
+            jd_text=jd_text,
             candidates_with_scores=phase2_scored,
             top_n=CROSS_ENCODER_TOP_N,
         )

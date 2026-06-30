@@ -6,7 +6,7 @@ All 23 redrob_signals scored across 6 tiers, ordered by JD priority:
     behavioral = clamp(0.50 + tier1 + tier2 + tier3 + tier4 + tier5 + tier6, 0, 1)
 
 Tiers (by JD priority):
-    Tier 1 — Logistics     : skill_assessments, work_mode, notice_period, willing_to_relocate
+    Tier 1 — Assessments  : skill_assessments (logistics moved to scorers/logistics.py)
     Tier 2 — Intent        : last_active, open_to_work, github, applications_30d, interview_rate
     Tier 3 — Responsiveness: recruiter_response_rate, avg_response_time, offer_acceptance_rate
     Tier 4 — Trust         : profile_completeness, verified_email, verified_phone, linkedin
@@ -45,12 +45,12 @@ def _days_since(date_str: str) -> int:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TIER 1 — LOGISTICS  (max reward: +0.23 | max penalty: −0.21)
-# Determines whether hiring is even logistically possible.
-# JD explicitly calls out: hybrid in Noida/Pune, ≤30-day notice preferred.
+# TIER 1 — ASSESSMENTS  (max reward: +0.08 | max penalty: −0.08)
+# Verified technical proof of ability to do the job.
+# Work mode, notice period, and relocation are now in scorers/logistics.py.
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _delta_tier1_logistics(signals: dict) -> float:
+def _delta_tier1_assessments(signals: dict) -> float:
     delta = 0.0
 
     # ── Skill assessment scores (only verified technical proof) ───────────────
@@ -72,28 +72,6 @@ def _delta_tier1_logistics(signals: dict) -> float:
             delta += 0.01   # Modest passing performance
         # avg < 50 and not < 30 → neutral (no delta)
     # No assessments → neutral (most candidates skip this)
-
-    # ── Preferred work mode (JD requires hybrid in Noida/Pune) ───────────────
-    mode = signals.get("preferred_work_mode", "")
-    _work_mode_deltas = {
-        "hybrid":   +0.05,   # Exact JD requirement
-        "flexible": +0.03,   # Will adapt
-        "onsite":   +0.01,   # Over-committed but fine
-        "remote":   -0.06,   # Direct conflict with JD
-    }
-    delta += _work_mode_deltas.get(mode, 0.0)
-
-    # ── Notice period (JD preferred max: 30 days) ─────────────────────────────
-    notice = signals.get("notice_period_days", 90)
-    if notice <= 30:    delta += 0.06    # Immediate / short — JD preferred
-    elif notice <= 60:  delta += 0.02    # Standard — manageable
-    elif notice <= 90:  delta -= 0.05    # Long — slows hiring velocity
-    else:               delta -= 0.10    # Very long — serious problem
-
-    # ── Willing to relocate ───────────────────────────────────────────────────
-    # Cross-reference with location happens in logistics.py; flat reward here.
-    if signals.get("willing_to_relocate", False):
-        delta += 0.04
 
     return delta
 
@@ -311,7 +289,7 @@ def score_behavioral(candidate: dict) -> float:
     signals = candidate.get("redrob_signals", {})
 
     total_delta = (
-        _delta_tier1_logistics(signals)
+        _delta_tier1_assessments(signals)
         + _delta_tier2_intent(signals)
         + _delta_tier3_responsiveness(signals)
         + _delta_tier4_trust(signals)

@@ -11,6 +11,7 @@ import os
 
 # Import classification helpers for domain gates
 from scorers.career_fit import _classify_title, _classify_company
+from config.jd_config import PREFERRED_LOCATIONS, ACCEPTABLE_LOCATIONS
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "ranking_config.yaml")
 with open(CONFIG_PATH, "r") as f:
@@ -20,9 +21,6 @@ with open(CONFIG_PATH, "r") as f:
 CURRENT_YEAR = RANKING_CONFIG["honeypot"]["dataset_year"]
 TECH_BIRTH_YEARS = RANKING_CONFIG["honeypot"]["tech_birth_years"]
 
-# Location preferences for G1
-P1_CITIES = {"noida", "pune", "gurgaon", "gurugram", "delhi", "new delhi"}
-P2_CITIES = {"hyderabad", "mumbai", "bangalore", "bengaluru", "chennai", "kolkata"}
 
 
 def _parse_date(date_str: str) -> date | None:
@@ -72,7 +70,7 @@ def _detect_honeypot_inner(candidate: dict) -> bool:
     country_n = country.lower().strip() if country else ""
     
     if country_n == "india":
-        if not relocate and city not in P1_CITIES and city not in P2_CITIES:
+        if not relocate and city not in PREFERRED_LOCATIONS and city not in ACCEPTABLE_LOCATIONS:
             flags += 2
     else:
         if not relocate:

@@ -24,9 +24,9 @@ pipeline:
 scoring_weights:
   career_fit: 0.50
   skill_auth: 0.15
-  behavioral: 0.35
+  behavioral: 0.25
   education: 0.00
-  logistics: 0.00
+  logistics: 0.10
 
 honeypot:
   dataset_year: 2026
