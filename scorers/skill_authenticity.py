@@ -247,4 +247,16 @@ def score_skill_authenticity(candidate: dict, jd: dict) -> float:
     summ  = _score_summary(summary, certs)
 
     score = 0.45 * rel + 0.30 * dep + 0.25 * summ
+    
+    # ─── Computer Vision Bleed-Over Penalty ──────────────────────────────
+    cv_kws = jd.get("computer_vision_keywords", [])
+    names = {_n(s.get("name", "")) for s in skills}
+    
+    has_cv = any(any(kw in n for kw in cv_kws) for n in names)
+    has_retrieval = bool(names & RETRIEVAL_VECTOR) or bool(names & EMBEDDINGS_TRANSFORMERS)
+    
+    # If they are purely a CV engineer (has CV skills but NO core retrieval/embeddings skills)
+    if has_cv and not has_retrieval:
+        score *= 0.20  # Massive penalty for domain mismatch
+
     return round(min(1.0, max(0.0, score)), 4)

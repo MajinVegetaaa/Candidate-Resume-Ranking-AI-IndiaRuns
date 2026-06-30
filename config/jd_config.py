@@ -138,6 +138,14 @@ JD_CONFIG = {
 
     # "Title-chasers" — avg tenure < 18 months across roles
     "title_chaser_threshold_months": 18,
+    
+    # Computer Vision Keywords — Explicit negative signal to penalize CV bleeding into Search roles
+    "computer_vision_keywords": [
+        "yolo", "opencv", "computer vision", "gan", "gans", "cnn", "cnns",
+        "image classification", "object detection", "image segmentation", 
+        "diffusion models", "stable diffusion", "midjourney", "dall-e",
+        "resnet", "vgg", "image processing", "facial recognition"
+    ],
 
     # =========================================================================
     # CAREER DESCRIPTION KEYWORDS

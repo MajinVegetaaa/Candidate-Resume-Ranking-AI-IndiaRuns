@@ -250,7 +250,7 @@ def _score_company_quality(career: List[dict], current_company: str,
     elif product == total:            hist = 1.00
     elif product / total >= 0.66:     hist = 0.80
     elif product / total >= 0.33:     hist = 0.55
-    elif consulting == total:         hist = 0.15
+    elif consulting == total:         hist = 0.00
     else:                             hist = 0.35
 
     # Current company component (40%)
@@ -260,8 +260,8 @@ def _score_company_quality(career: List[dict], current_company: str,
 
     if cur_type == "product":         cur = 1.00
     elif cur_type == "startup":       cur = 0.75
-    elif large_consulting:            cur = 0.15
-    elif cur_type == "consulting":    cur = 0.40
+    elif large_consulting:            cur = 0.00
+    elif cur_type == "consulting":    cur = 0.20
     elif cur_type == "non_tech":      cur = 0.20
     else:                             cur = 0.55
 
@@ -336,4 +336,20 @@ def score_career_fit(candidate: dict, jd: dict) -> float:
     st = _score_stability(career, profile.get("years_of_experience", 0))
 
     score = 0.40 * we + 0.25 * tr + 0.20 * cq + 0.15 * st
+    
+    # ─── Strict ML/Product Experience Check ──────────────────────────────
+    # JD requires 4-5 years specifically in applied ML/AI roles at product companies.
+    ml_product_months = 0
+    for job in career:
+        title_type = _classify_title(job.get("title", ""))
+        comp_type = _classify_company(job.get("company", ""), job.get("industry", ""))
+        
+        # If the role is ML/Search and at a Product/Startup company, sum the months
+        if title_type == "ml_search" and comp_type in ["product", "startup"]:
+            ml_product_months += job.get("duration_months", 0)
+            
+    # If they have less than 48 months of this highly specific experience, heavily penalize
+    if ml_product_months < 48:
+        score *= 0.10
+
     return round(min(1.0, max(0.0, score)), 4)
