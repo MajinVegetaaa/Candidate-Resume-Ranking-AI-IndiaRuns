@@ -60,7 +60,16 @@ BI_ENCODER_TOP_N = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"]["top_n_pool"]
 CROSS_ENCODER_TOP_N = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["top_n_pool"]
 OUTPUT_TOP_K = RANKING_CONFIG["pipeline"]["output"]["top_k"]
 
-
+#Behavioral dead candidates (inactive + low response rate) should be gated
+def compute_availability_multiplier(candidate):
+    signals = candidate.get("redrob_signals", {})
+    days_inactive = _days_since(signals.get("last_active_date", ""))
+    response_rate = signals.get("recruiter_response_rate", 0) or 0
+    if days_inactive > 180 and response_rate < 0.2:  return 0.3
+    if days_inactive > 90 and response_rate < 0.15:  return 0.4
+    if not signals.get("open_to_work_flag") and days_inactive > 60: return 0.75
+    return 1.0
+    
 def _notice_multiplier(candidate: dict) -> float:
     notice_days = candidate.get("redrob_signals", {}).get("notice_period_days", 0) or 0
     if notice_days <= 30:   return 1.0
