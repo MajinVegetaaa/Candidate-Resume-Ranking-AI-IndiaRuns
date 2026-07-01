@@ -13,7 +13,7 @@ Sub-scores:
 No gate checks here — gates live exclusively in honeypot_detector.py.
 """
 
-from typing import Any, Dict, List
+from typing import List
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -124,19 +124,20 @@ def _score_relevance(skills: List[dict]) -> float:
         return 0.05
 
     names = {_n(s.get("name", "")) for s in skills}
-    has_r  = bool(names & RETRIEVAL_VECTOR)
-    has_e  = bool(names & EMBEDDINGS_TRANSFORMERS)
-    has_rk = bool(names & RANKING_RECSYS)
-    has_ml = bool(names & ML_CORE)
-    has_ll = bool(names & LLM_FINETUNE)
-    has_de = bool(names & DATA_ENGINEERING)
+    r_count  = len(names & RETRIEVAL_VECTOR)
+    e_count  = len(names & EMBEDDINGS_TRANSFORMERS)
+    rk_count = len(names & RANKING_RECSYS)
+    ml_count = len(names & ML_CORE)
+    
+    # We want depth/substantive proof. 1.00 requires at least 4 distinct core search/ranking skills.
+    core_search_skills = r_count + e_count + rk_count
 
-    if has_r and has_e:               return 1.00
-    if (has_r or has_e) and has_rk:   return 0.85
-    if has_r or has_e:                return 0.70
-    if has_rk and has_ml:             return 0.55
-    if has_rk or has_ml:              return 0.40
-    if has_ll or has_de:              return 0.25
+    if core_search_skills >= 4:       return 1.00
+    if core_search_skills == 3:       return 0.85
+    if core_search_skills == 2:       return 0.70
+    if core_search_skills == 1 and ml_count >= 2: return 0.55
+    if core_search_skills == 1:       return 0.40
+    if ml_count >= 2:                 return 0.25
     return 0.05
 
 
@@ -146,14 +147,15 @@ def _score_relevance(skills: List[dict]) -> float:
 
 def _score_depth(skills: List[dict]) -> float:
     """Combined proficiency level + tenure on JD-relevant skills."""
-    relevant = [s for s in skills if _n(s.get("name", "")) in JD_RELEVANT]
-    if not relevant:
+    # Only measure depth against CORE Search/Ranking skills, not generic ML
+    core_relevant = [s for s in skills if _n(s.get("name", "")) in (RETRIEVAL_VECTOR | EMBEDDINGS_TRANSFORMERS | RANKING_RECSYS)]
+    if not core_relevant:
         return 0.10
-
+        
     # Proficiency component (60%)
-    expert   = sum(1 for s in relevant if s.get("proficiency") == "expert")
-    advanced = sum(1 for s in relevant if s.get("proficiency") == "advanced")
-    inter    = sum(1 for s in relevant if s.get("proficiency") == "intermediate")
+    expert   = sum(1 for s in core_relevant if s.get("proficiency") == "expert")
+    advanced = sum(1 for s in core_relevant if s.get("proficiency") == "advanced")
+    inter    = sum(1 for s in core_relevant if s.get("proficiency") == "intermediate")
 
     if expert >= 2:                   prof = 1.00
     elif expert == 1 or advanced >= 3: prof = 0.80
@@ -162,7 +164,7 @@ def _score_depth(skills: List[dict]) -> float:
     else:                             prof = 0.15
 
     # Tenure component (40%)
-    durations = [s.get("duration_months", 0) for s in relevant if s.get("duration_months", 0) > 0]
+    durations = [s.get("duration_months", 0) for s in core_relevant if s.get("duration_months", 0) > 0]
     if not durations:
         ten = 0.15
     else:
@@ -253,7 +255,9 @@ def score_skill_authenticity(candidate: dict, jd: dict) -> float:
     names = {_n(s.get("name", "")) for s in skills}
     
     cv_count = sum(1 for n in names if any(kw in n for kw in cv_kws))
-    retrieval_count = len(names & RETRIEVAL_VECTOR) + len(names & EMBEDDINGS_TRANSFORMERS)
+    retrieval_count = (len(names & RETRIEVAL_VECTOR) + 
+                       len(names & EMBEDDINGS_TRANSFORMERS) + 
+                       len(names & RANKING_RECSYS))
 
     if cv_count > 0 and retrieval_count <= 1:
         score *= 0.20
