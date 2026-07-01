@@ -101,7 +101,6 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
     notice = signals.get('notice_period_days', None)
     interview_rate = signals.get('interview_completion_rate', 0) or 0
     open_to_work = signals.get('open_to_work_flag', False)
-    profile_completeness = signals.get('profile_completeness_score', 0) or 0
 
     # ── Variation seed ──────────────────────────────────────────────
     cid = candidate.get('candidate_id', '')
@@ -239,7 +238,6 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
             gaps.append(gap_rules["high_yoe_message"].format(yoe=yoe))
 
         # Location concerns
-        loc_lower = location.lower() if location else ''
         country_lower = country.lower()
         if country_lower and country_lower != 'india' and rank > gap_rules["foreign_country_rank_threshold"]:
             gaps.append(gap_rules["foreign_country_message"].format(country=country))

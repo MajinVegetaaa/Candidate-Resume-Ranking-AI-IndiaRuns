@@ -21,7 +21,6 @@ Design rules:
 """
 
 from datetime import datetime, date
-from typing import Dict
 
 from config.jd_config import ALL_JD_SKILLS
 

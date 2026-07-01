@@ -15,7 +15,7 @@ Usage:
 
 import csv
 import json
-import math
+
 import sys
 import os
 
