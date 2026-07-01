@@ -348,8 +348,17 @@ def score_career_fit(candidate: dict, jd: dict) -> float:
         if title_type == "ml_search" and comp_type in ["product", "startup"]:
             ml_product_months += job.get("duration_months", 0)
             
-    # If they have less than 48 months of this highly specific experience, heavily penalize
-    if ml_product_months < 48:
-        score *= 0.10
+    if ml_product_months >= 48:
+        experience_multiplier = 1.0
+    elif ml_product_months >= 36:
+        experience_multiplier = 0.70
+    elif ml_product_months >= 24:
+        experience_multiplier = 0.45
+    elif ml_product_months >= 12:
+        experience_multiplier = 0.25
+    else:
+        experience_multiplier = 0.10
+
+score *= experience_multiplier
 
     return round(min(1.0, max(0.0, score)), 4)
