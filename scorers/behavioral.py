@@ -25,8 +25,7 @@ from typing import Dict
 
 from config.jd_config import ALL_JD_SKILLS
 
-REFERENCE_DATE = date(2026, 6, 29)
-
+REFERENCE_DATE = date.today()
 # Lowercase set for fast O(1) membership checks
 _JD_SKILLS_LOWER: set = {s.lower() for s in ALL_JD_SKILLS}
 
