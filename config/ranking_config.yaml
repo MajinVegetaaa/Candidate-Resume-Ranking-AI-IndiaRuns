@@ -6,11 +6,14 @@ pipeline:
     blend_weights:
       rule_score: 0.75
       semantic_score: 0.25
+    extraction:
+      max_roles: 3
+      max_skills: 15
 
   phase3_cross_encoder:
     model_name: "cross-encoder/ms-marco-MiniLM-L-6-v2"
     device: "cpu"
-    top_n_pool: 200
+    top_n_pool: 300
     blend_weights:
       prev_score: 0.70
       semantic_score: 0.30
