@@ -276,8 +276,8 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
             flags.append(f"{raw_city.title()} not preferred location")
 
     # Flag 3: Rank > 80 — explicitly below typical shortlist cutoff
-    if rank > 80:
-        flags.append("below cutoff; included as filler")
+    # if rank > 80:
+    #     flags.append("below cutoff; included as filler")
 
     if flags:
         parts.append("| flags: " + "; ".join(flags))
