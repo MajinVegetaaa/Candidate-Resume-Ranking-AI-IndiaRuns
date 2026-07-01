@@ -15,7 +15,7 @@ No gate checks here — gates live exclusively in honeypot_detector.py.
 """
 
 from collections import Counter
-from typing import Any, Dict, List
+from typing import List
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -163,11 +163,11 @@ def _score_work_evidence(career: List[dict]) -> float:
 
     descs = [d.strip() for d in (j.get("description", "") for j in career) if d.strip()]
 
-    # Strip identical copy-pasted descriptions
-    if len(descs) >= 3:
+    # Strip identical copy-pasted descriptions (catches 2+ duplicates now)
+    if len(descs) >= 2:
         counts = Counter(descs)
         most_common_text, count = counts.most_common(1)[0]
-        if count >= 3:
+        if count >= 2:
             descs = [d for d in descs if d != most_common_text]
             if not descs:
                 return 0.0
@@ -181,18 +181,23 @@ def _score_work_evidence(career: List[dict]) -> float:
         g = sum(1 for kw in DESC_GENERIC_TECH if kw in text)
         n = sum(1 for kw in DESC_NON_TECH if kw in text)
 
-        if r >= 2:                       retrieval += 1
+        # Look for explicit deep technical proof of embeddings/vector search/evaluation
+        deep_proof = sum(1 for kw in ["faiss", "pinecone", "weaviate", "qdrant", "milvus", "embedding", "ndcg", "mrr", "cross-encoder"] if kw in text)
+
+        if r >= 2 and deep_proof >= 1:   retrieval += 2
+        elif r >= 2:                     retrieval += 1
         elif m >= 2:                     ml += 1
         elif d >= 2:                     data_eng += 1
         elif g >= 1 and n == 0:          generic += 1
 
-    if retrieval >= 2:                   return 1.00
-    if retrieval == 1 and ml >= 1:       return 0.85
-    if retrieval == 1:                   return 0.70
-    if ml >= 2:                          return 0.55
-    if ml == 1:                          return 0.40
-    if data_eng >= 1:                    return 0.25
-    if generic >= 1:                     return 0.15
+    if retrieval >= 3:                   return 1.00 # Multiple roles with deep proof, or very strong single role
+    if retrieval == 2:                   return 0.85 # One role with deep proof
+    if retrieval == 1 and ml >= 1:       return 0.60 # Standard retrieval without deep vector/embedding proof
+    if retrieval == 1:                   return 0.40
+    if ml >= 2:                          return 0.25 # Severely penalize generic ML
+    if ml == 1:                          return 0.15
+    if data_eng >= 1:                    return 0.10
+    if generic >= 1:                     return 0.05
     return 0.05
 
 
@@ -354,17 +359,7 @@ def score_career_fit(candidate: dict, jd: dict) -> float:
         if (title_qualifies or desc_qualifies) and comp_type in ["product", "startup"]:
             ml_product_months += job.get("duration_months", 0)
             
-    if ml_product_months >= 48:
-        experience_multiplier = 1.0
-    elif ml_product_months >= 36:
-        experience_multiplier = 0.70
-    elif ml_product_months >= 24:
-        experience_multiplier = 0.45
-    elif ml_product_months >= 12:
-        experience_multiplier = 0.25
-    else:
-        experience_multiplier = 0.10
-
-    score *= experience_multiplier
+    if ml_product_months < 48:
+        score *= 0.10
 
     return round(min(1.0, max(0.0, score)), 4)
