@@ -88,14 +88,16 @@ def _detect_honeypot_inner(candidate: dict) -> bool:
     if career_history and all(j.get("duration_months", 12) < 12 for j in career_history):
         flags += 2
 
-    # G7: Copy-Pasted Job Descriptions (require 3+ identical, not just 2)
+    # G7: Copy-Pasted Job Descriptions (2+ identical is suspicious, 3+ is a hard reject)
     if career_history:
         from collections import Counter
         descs = [j.get("description", "").strip() for j in career_history if j.get("description", "").strip()]
-        if len(descs) > 2:
+        if len(descs) > 1:
             most_common_count = Counter(descs).most_common(1)[0][1]
             if most_common_count >= 3:
-                flags += 1  # 1 flag not 2 — needs corroboration
+                flags += 2  # Hard reject: 3+ identical descriptions
+            elif most_common_count >= 2:
+                flags += 1  # Soft flag: needs one more red signal to reject
 
     # G3: Honeypot Transition (Current tech, all prior non-tech)
     current_title = profile.get("current_title", "")
