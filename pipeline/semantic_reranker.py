@@ -9,6 +9,7 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import yaml
 import os
+from scipy.special import expit
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "ranking_config.yaml")
 with open(CONFIG_PATH, "r") as f:
@@ -92,14 +93,16 @@ def cross_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_
     ce_scores = model.predict(pairs)
     ce_scores = np.nan_to_num(ce_scores, nan=0.0)
     
-    # Min-Max scaling to map the logits directly to 0.0 - 1.0 range
-    min_ce = np.min(ce_scores)
-    max_ce = np.max(ce_scores)
-    if max_ce > min_ce:
-        norm_ce_scores = (ce_scores - min_ce) / (max_ce - min_ce)
-    else:
-        norm_ce_scores = np.zeros_like(ce_scores)
-        
+    # # Min-Max scaling to map the logits directly to 0.0 - 1.0 range
+    # min_ce = np.min(ce_scores)
+    # max_ce = np.max(ce_scores)
+    # if max_ce > min_ce:
+    #     norm_ce_scores = (ce_scores - min_ce) / (max_ce - min_ce)
+    # else:
+    #     norm_ce_scores = np.zeros_like(ce_scores)
+
+    # With this (sigmoid keeps relative order, doesn't amplify noise):
+    norm_ce_scores = expit(ce_scores)  # maps any logits to (0,1) smoothly
     norm_ce_scores = np.nan_to_num(norm_ce_scores, nan=0.0)
 
     prev_weight = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["blend_weights"]["prev_score"]
