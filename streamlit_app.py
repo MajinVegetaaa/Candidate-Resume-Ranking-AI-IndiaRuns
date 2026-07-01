@@ -15,6 +15,7 @@ import json
 import time
 import sys
 import os
+import yaml
 
 import streamlit as st
 
@@ -30,20 +31,22 @@ from scorers.logistics import score_logistics
 from pipeline.honeypot_detector import detect_honeypot
 from pipeline.reasoning_generator import generate_reasoning
 
-# ── Scoring weights (same as rank.py) ────────────────────────────────
-WEIGHTS = {
-    "career_fit":  0.35,
-    "skill_auth":  0.25,
-    "behavioral":  0.20,
-    "education":   0.10,
-    "logistics":   0.10,
-}
+# ── Load dynamic config to ensure Sandbox matches Production ──────────
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "ranking_config.yaml")
+with open(CONFIG_PATH, "r") as f:
+    RANKING_CONFIG = yaml.safe_load(f)
 
+WEIGHTS = RANKING_CONFIG["scoring_weights"]
 OUTPUT_TOP_K = 100
 
 
 def score_candidate(candidate: dict) -> tuple:
-    """Score a single candidate across all 5 dimensions."""
+    """Score a single candidate mirroring the exact logic in rank.py."""
+    # 🚨 SHORT-CIRCUIT: Honeypot check first to save compute
+    is_honeypot = detect_honeypot(candidate)
+    if is_honeypot:
+        return 0.0, True, {}
+
     sub_scores = {
         "career_fit":  score_career_fit(candidate, JD_CONFIG),
         "skill_auth":  score_skill_authenticity(candidate, JD_CONFIG),
@@ -51,11 +54,39 @@ def score_candidate(candidate: dict) -> tuple:
         "education":   score_education(candidate),
         "logistics":   score_logistics(candidate, JD_CONFIG),
     }
-    composite = sum(WEIGHTS[k] * sub_scores[k] for k in WEIGHTS)
-    is_honeypot = detect_honeypot(candidate)
-    if is_honeypot:
+
+    # 🚨 DEFENSIVE CLEAN KILL SWITCH 🚨
+    if sub_scores["logistics"] <= 0.0 or sub_scores["behavioral"] <= 0.20:
         composite = 0.0
-    return composite, is_honeypot, sub_scores
+    else:
+        # Calculate Base Composite
+        composite = sum(WEIGHTS[k] * sub_scores[k] for k in WEIGHTS)
+
+        # 🚨 STRUCTURAL QUALITY FLOOR 
+        career_skill_strength = (
+            WEIGHTS["career_fit"] * sub_scores["career_fit"] +
+            WEIGHTS["skill_auth"] * sub_scores["skill_auth"]
+        ) / (WEIGHTS["career_fit"] + WEIGHTS["skill_auth"])
+
+        if career_skill_strength < 0.30:
+            composite *= 0.25  # Hard secondary penalty
+            
+        # 🚨 THE "RAISE THE BAR" NOTICE PERIOD MULTIPLIER 🚨
+        signals = candidate.get("redrob_signals", {})
+        notice_days = signals.get("notice_period_days", 0)
+        
+        if notice_days <= 30:
+            multiplier = 1.0
+        elif notice_days <= 60:
+            multiplier = 0.92
+        elif notice_days <= 90:
+            multiplier = 0.80
+        else:
+            multiplier = 0.65
+            
+        composite = composite * multiplier
+
+    return composite, False, sub_scores
 
 
 def run_ranking(candidates: list[dict]) -> list[dict]:
@@ -64,7 +95,7 @@ def run_ranking(candidates: list[dict]) -> list[dict]:
     honeypot_count = 0
 
     for candidate in candidates:
-        cid = candidate["candidate_id"]
+        cid = candidate.get("candidate_id", "UNKNOWN")
         score, is_hp, sub_scores = score_candidate(candidate)
         if is_hp:
             honeypot_count += 1
@@ -108,7 +139,8 @@ st.set_page_config(
 st.title("🏆 Redrob Intelligent Candidate Ranker")
 st.markdown("""
 **Sandbox demo** for the Intelligent Candidate Discovery & Ranking Challenge.
-Upload a candidate JSONL file (≤100 candidates) to see the ranking in action.
+Upload a candidate JSONL file (≤100 candidates) to see Phase 1 Heuristics in action.
+*(Semantic Bi-Encoder/Cross-Encoder reranking is bypassed in this UI for rendering speed)*
 """)
 
 st.divider()
@@ -143,7 +175,7 @@ if uploaded_file is not None:
     if candidates:
         st.divider()
 
-        if st.button("🚀 Run Ranker", type="primary"):
+        if st.button("🚀 Run Phase 1 Ranker", type="primary"):
             start = time.time()
 
             with st.spinner("Scoring candidates..."):
@@ -178,11 +210,11 @@ if uploaded_file is not None:
                     "Company": p.get("current_company", ""),
                     "YoE": f"{p.get('years_of_experience', 0):.1f}",
                     "Location": p.get("location", ""),
-                    "Career": f"{s['career_fit']:.3f}",
-                    "Skills": f"{s['skill_auth']:.3f}",
-                    "Behav": f"{s['behavioral']:.3f}",
-                    "Edu": f"{s['education']:.3f}",
-                    "Logist": f"{s['logistics']:.3f}",
+                    "Career": f"{s.get('career_fit', 0):.3f}",
+                    "Skills": f"{s.get('skill_auth', 0):.3f}",
+                    "Behav": f"{s.get('behavioral', 0):.3f}",
+                    "Edu": f"{s.get('education', 0):.3f}",
+                    "Logist": f"{s.get('logistics', 0):.3f}",
                     "Honeypot": "⚠️" if entry["is_honeypot"] else "",
                 })
 
@@ -192,9 +224,9 @@ if uploaded_file is not None:
             st.divider()
             csv_output = results_to_csv(results, top_k)
             st.download_button(
-                "📥 Download Submission CSV",
+                "📥 Download Phase 1 CSV",
                 csv_output,
-                file_name="submission.csv",
+                file_name="sandbox_submission.csv",
                 mime="text/csv",
             )
 
