@@ -1,7 +1,7 @@
 # 🏆 Candidate Resume Ranking AI - IndiaRuns Hackathon (Redrob)
 ### Team: Tunday Kebabs
 
-An intelligent, AI-powered candidate ranking system that processes **100,000 profiles in ~292 seconds**.
+An intelligent, AI-powered candidate ranking system that processes **100,000 profiles in ~263 seconds**.
 
 (No GPU, No Network, < 5 minutes)
 
@@ -47,7 +47,7 @@ To process 100,000 candidates quickly while maintaining deep semantic accuracy, 
 
 4. **Phase 4: Output & Reasoning**
    - Cuts off at exactly 100 candidates.
-   - Generates a unique, fact-grounded reasoning string for why the candidate was selected.
+   - Generates a unique, fact-grounded reasoning string using a custom **5-Tier Natural Language Generation (NLG)** engine.
    - Writes the final `submission.csv`.
 
 ---
@@ -109,7 +109,7 @@ The dataset contains traps that this ranker automatically avoids:
 
 | Metric | Result | Hackathon Limit |
 |--------|--------|-----------------|
-| **Total Runtime** | ~292 seconds | 300 seconds (5 min) |
+| **Total Runtime** | ~263 seconds | 300 seconds (5 min) |
 | **RAM Usage** | ~2 GB | 16 GB |
 | **GPU/Hardware** | Forced `CPU-only` | No GPU allowed |
 | **Network** | Zero (Offline after init) | No network allowed |

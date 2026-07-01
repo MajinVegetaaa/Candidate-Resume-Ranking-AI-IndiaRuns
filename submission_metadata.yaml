@@ -29,7 +29,7 @@ team_members:
 github_repo: "https://github.com/MajinVegetaaa/redrob-ranker"
 
 
-sandbox_link: "https://huggingface.co/spaces/TODO_USERNAME/redrob-ranker"
+sandbox_link: "https://[YOUR-APP-NAME].streamlit.app"
 # Required. A working hosted environment where the ranker can be run on a small
 # candidate sample. Alternatives: Streamlit Cloud, Replit, Colab, Docker, Binder.
 
@@ -59,9 +59,7 @@ ai_tools_used:
   # Options: "Claude", "ChatGPT", "Copilot", "Cursor", "Gemini", "Codeium", "Other", "None"
 
 ai_usage_summary: |
-  TODO: Briefly describe how AI tools were used. Examples:
-  - "Used Claude for code review and architectural discussion."
-  - "Used Antigravity for documentation and complete development creating "
+  Used Antigravity for end-to-end development, architecture planning, implementing the 4-phase pipeline (Rule-Based + Semantic Reranking), writing the honeypot detection rules, designing the Streamlit Sandbox, and creating a custom NLG (Natural Language Generation) engine for candidate reasoning.
 
 # ============================================================================
 # Approach summary (optional but recommended)
