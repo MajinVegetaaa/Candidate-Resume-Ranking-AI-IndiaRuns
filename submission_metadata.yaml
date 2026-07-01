@@ -65,13 +65,13 @@ ai_usage_summary: |
 # Approach summary (optional but recommended)
 # ============================================================================
 methodology_summary: | 
-  Three-phase ranking system (Rule-Based + Bi-Encoder + Cross-Encoder). Phase 1 streams 100K candidates in ~16s,
+  Three-phase ranking system (Rule-Based + Bi-Encoder + Cross-Encoder). Phase 1 streams 100K candidates in ~36s,
   scoring across 3 weighted dimensions (career fit 0.50, behavioral 0.35, skill authenticity 0.15).
   We implemented strict domain gates (G1-G6) in Phase 1 to hard-reject candidates with impossible timelines,
   wrong locations without relocation, or purely consulting backgrounds. Phase 2 re-ranks the top 1,000 using
-  all-mpnet-base-v2 embeddings blended 60/40 with rule scores. Phase 3 deep-ranks the top 200 using 
+  all-mpnet-base-v2 embeddings blended 60/40 with rule scores. Phase 3 deep-ranks the top 300 using 
   cross-encoder/ms-marco-MiniLM-L-6-v2 blended 50/50. 
-  Runtime ~2.5 mins on CPU, ~2GB RAM.
+  Runtime ~4.4 mins on CPU, ~2GB RAM.
 
 # ============================================================================
 # Declarations

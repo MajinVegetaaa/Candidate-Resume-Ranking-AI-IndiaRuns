@@ -32,16 +32,16 @@ To process 100,000 candidates quickly while maintaining deep semantic accuracy, 
 1. **Phase 1: Rule-Based Scoring (~36s)**
    - Streams all 100K candidates.
    - Applies lightweight rules for career fit, skills, logistics, and behavioral signals.
-   - Filters out duplicates and **honeypots**.
-   - Output: Top 1,200 candidates.
+   - Filters out duplicates and **honeypots** (caught over 74,000 bad profiles).
+   - Output: Top 1,000 candidates.
 
-2. **Phase 2: Fast Semantic Search (~228s)**
-   - Uses a **Bi-Encoder** (`all-mpnet-base-v2`) to compare the Job Description against the Top 1,200 candidates.
+2. **Phase 2: Fast Semantic Search (~205s)**
+   - Uses a **Bi-Encoder** (`all-mpnet-base-v2`) to compare the Job Description against the Top 1,000 candidates.
    - Blends the semantic score with the Phase 1 rule score.
-   - Output: Top 200 candidates.
+   - Output: Top 300 candidates.
 
-3. **Phase 3: Deep Contextual Reranking (~27s)**
-   - Uses a heavy **Cross-Encoder** (`ms-marco-MiniLM-L-6-v2`) on the Top 200 for intense, deep-context evaluation.
+3. **Phase 3: Deep Contextual Reranking (~23s)**
+   - Uses a heavy **Cross-Encoder** (`ms-marco-MiniLM-L-6-v2`) on the Top 300 for intense, deep-context evaluation.
    - Blends this final semantic score with previous scores.
    - Output: Final highly-accurate ranking.
 
