@@ -61,21 +61,21 @@ CROSS_ENCODER_TOP_N = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["top_n_
 OUTPUT_TOP_K = RANKING_CONFIG["pipeline"]["output"]["top_k"]
 
 
-def score_candidate(candidate: dict, jd: dict) -> tuple:
-    sub_scores = {
-        "career_fit":  score_career_fit(candidate, jd),
-        "skill_auth":  score_skill_authenticity(candidate, jd),
-        "behavioral":  score_behavioral(candidate),
-        "education":   score_education(candidate),
-        "logistics":   score_logistics(candidate, jd),
-    }
+def _notice_multiplier(candidate: dict) -> float:
+    notice_days = candidate.get("redrob_signals", {}).get("notice_period_days", 0) or 0
+    if notice_days <= 30:   return 1.0
+    elif notice_days <= 60: return 0.92
+    elif notice_days <= 90: return 0.80
+    else:                   return 0.65
 
+def score_candidate(candidate: dict, jd: dict) -> tuple:
+    sub_scores = { ... }  # existing
     composite = sum(WEIGHTS[k] * sub_scores[k] for k in WEIGHTS)
     is_honeypot = detect_honeypot(candidate)
-
     if is_honeypot:
         composite = 0.0
-
+    else:
+        composite *= _notice_multiplier(candidate) 
     return composite, is_honeypot, sub_scores
 
 def _generate_candidate_fingerprint(candidate: dict) -> str:
