@@ -109,6 +109,14 @@ JD_CONFIG = {
         "resnet", "vgg", "image processing", "facial recognition"
     ],
 
+    "jd_text_for_embedding": """
+    Ideal archetype: Senior Machine Learning Engineer or Search Ranking Engineer from a product-first tech company. 
+    They have 5+ years of experience building, evaluating, and shipping production-scale retrieval and ranking systems. 
+    Core expertise in Python, embedding-based dense retrieval, vector databases, and Learning-to-Rank. 
+    Deep understanding of search relevance metrics (NDCG, MRR, A/B testing). 
+    They are builders who own the end-to-end ML pipeline, not just fine-tuning LLMs or building generic CV/GenAI wrappers.
+    """,
+
     # =========================================================================
     # CAREER DESCRIPTION KEYWORDS
     # =========================================================================
