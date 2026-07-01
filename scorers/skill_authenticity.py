@@ -255,11 +255,11 @@ def score_skill_authenticity(candidate: dict, jd: dict) -> float:
     cv_count = sum(1 for n in names if any(kw in n for kw in cv_kws))
     retrieval_count = len(names & RETRIEVAL_VECTOR) + len(names & EMBEDDINGS_TRANSFORMERS)
 
-    if cv_count > 0 and retrieval_count == 0:
+    if cv_count > 0 and retrieval_count <= 1:
         score *= 0.20
-    elif cv_count > 0 and retrieval_count == 1:
+    elif cv_count > 0 and retrieval_count == 2:
         score *= 0.55
-    elif cv_count > 0 and retrieval_count >= 2:
-        score *= 1.0  # Enough retrieval depth, CV background is irrelevant
+    elif cv_count > 0 and retrieval_count >= 3:
+        score *= 1.0  
 
     return round(min(1.0, max(0.0, score)), 4)
