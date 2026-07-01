@@ -24,18 +24,7 @@ with open(CONFIG_PATH, "r") as f:
     RANKING_CONFIG = yaml.safe_load(f)
 
 
-def load_jd_text(jd_path: str) -> str:
-    """Read the raw JD text directly from the .docx file.
-    Falls back to an empty string on failure."""
-    try:
-        from docx import Document
-        doc = Document(jd_path)
-        text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
-        print(f"  ✅ Loaded JD from {jd_path} ({len(text):,} chars)")
-        return text
-    except Exception as e:
-        print(f"  ⚠  Could not read JD docx ({e}). Falling back to empty string.")
-        return ""
+
 
 # ── Config ───────────────────────────────────────────────────────────────
 from config.jd_config import JD_CONFIG
@@ -211,8 +200,7 @@ def write_submission(all_ranked_candidates: list, output_path: str, jd: dict):
 def main():
     parser = argparse.ArgumentParser(description="Redrob Hackathon — Intelligent Candidate Ranker")
     parser.add_argument("--candidates", type=str, default="./candidates.jsonl")
-    parser.add_argument("--jd", type=str, default="../India_runs_data_and_ai_challenge/job_description.docx",
-                        help="Path to the job_description.docx file")
+
     parser.add_argument("--out", type=str, default="./output/Tunday_Kebabs.csv")
     parser.add_argument("--no-semantic", action="store_true")
     args = parser.parse_args()
