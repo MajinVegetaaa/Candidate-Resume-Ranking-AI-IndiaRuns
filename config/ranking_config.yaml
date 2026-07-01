@@ -15,31 +15,60 @@ pipeline:
     device: "cpu"
     top_n_pool: 200
     blend_weights:
-      prev_score: 0.50
-      semantic_score: 0.50
+      prev_score: 0.35
+      semantic_score: 0.65
 
   output:
     top_k: 100
 
 scoring_weights:
-  career_fit: 0.50
-  skill_auth: 0.15
-  behavioral: 0.25
-  education: 0.00
-  logistics: 0.10
+  career_fit: 0.40   # Dropped slightly, but still the massive anchor
+  skill_auth: 0.30   # Boosted. They MUST have retrieval/ranking tech depth!
+  behavioral: 0.15   # Dropped slightly. (Ghosts are caught by your kill switch anyway)
+  logistics: 0.10    # Keeps the math clean for Pune/Hybrid preferences
+  education: 0.05    # Slashed. Series A startups rarely care about degrees vs. experience
 
 honeypot:
   dataset_year: 2026
+
+  # 1. The "Time-Traveler" Tech Matrix
   tech_birth_years:
+    # -- General GenAI (Your list) --
     chatgpt: 2022
-    llm fine-tuning: 2020
-    llm fine tuning: 2020
-    langchain: 2022
-    lora: 2021
-    qlora: 2023
     gpt-4: 2023
     gpt4: 2023
     claude: 2023
-    stable diffusion: 2022
-    midjourney: 2022
     gemini: 2023
+    midjourney: 2022
+    stable diffusion: 2022
+    
+    # -- JD-Specific: LLM Fine-Tuning & Frameworks --
+    llm fine-tuning: 2020
+    llm fine tuning: 2020
+    langchain: 2022
+    llamaindex: 2022
+    llama-index: 2022
+    lora: 2021
+    qlora: 2023
+    peft: 2022
+    rag: 2020
+    retrieval-augmented generation: 2020
+    
+    # -- JD-Specific: Open Source Models --
+    llama: 2023
+    mistral: 2023
+    mixtral: 2023
+    
+    # -- JD-Specific: Vector Databases --
+    pinecone: 2021
+    qdrant: 2021
+    weaviate: 2019
+    milvus: 2019
+    
+    # -- Core Architecture Baseline --
+    transformers: 2017  
+  # 2. The "Immortal / Missing Math" Structural Limits
+  structural_limits:
+    max_single_role_months: 480          # 40 years in one job is a classic anomaly trap
+    max_yoe_discrepancy_years: 5.0       # Max difference between Summary YoE and Calculated YoE
+    max_pre_graduation_yoe: 4.0          # Max allowed "working through college" years
