@@ -35,7 +35,7 @@ def _build_candidate_text(candidate: dict) -> str:
     max_skills = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"]["extraction"]["max_skills"]
 
     career = candidate.get('career_history', []) or []
-    role_texts = [f"{r.get('title', '')} at {r.get('company', '')}: {(r.get('description', '') or '')[:200]}" for r in career[:max_roles]]
+    role_texts = [f"{r.get('title', '')} at {r.get('company', '')}: {(r.get('description', '') or '')[:600]}" for r in career[:max_roles]]
     if role_texts: parts.append("Career: " + "; ".join(role_texts))
 
     skills = [s.get('name', '') for s in (candidate.get('skills', []) or [])[:max_skills] if s.get('name')]
