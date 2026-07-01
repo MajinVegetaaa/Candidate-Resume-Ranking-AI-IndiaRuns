@@ -365,6 +365,6 @@ def score_career_fit(candidate: dict, jd: dict) -> float:
     else:
         experience_multiplier = 0.10
 
-score *= experience_multiplier
+    score *= experience_multiplier
 
     return round(min(1.0, max(0.0, score)), 4)
