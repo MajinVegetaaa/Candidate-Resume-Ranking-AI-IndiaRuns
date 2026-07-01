@@ -120,7 +120,7 @@ with tab1:
     uploaded_file = st.file_uploader("Drop candidates.jsonl here (≤ 500 candidates)", type=["jsonl", "json"])
     
     if uploaded_file is not None:
-        if st.button("Execute Deep Ranking Pipeline", type="primary", use_container_width=True):
+        if st.button("Execute Deep Ranking Pipeline", type="primary", width='stretch'):
             with st.spinner("Initializing neural networks... Please do not refresh."):
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".jsonl") as tmp_in:
                     tmp_in.write(uploaded_file.getvalue())
@@ -151,7 +151,7 @@ with tab1:
                             st.markdown("<hr>", unsafe_allow_html=True)
                             st.markdown("### Top Ranked Candidates")
                             df = pd.read_csv(tmp_out_path)
-                            st.dataframe(df, use_container_width=True)
+                            st.dataframe(df, width='stretch')
                             
                             st.markdown("<br>", unsafe_allow_html=True)
                             csv_data = df.to_csv(index=False).encode('utf-8')
@@ -161,7 +161,7 @@ with tab1:
                                 file_name="submission.csv",
                                 mime="text/csv",
                                 type="primary",
-                                use_container_width=True
+                                width='stretch'
                             )
                 except Exception as e:
                     st.error(f"Error executing pipeline: {e}")
@@ -180,7 +180,7 @@ with tab2:
         
     with col2:
         st.markdown("<br>", unsafe_allow_html=True) # spacer
-        if st.button("Simulate AI Judgment", type="primary", use_container_width=True):
+        if st.button("Simulate AI Judgment", type="primary", width='stretch'):
             if not candidate_json.strip():
                 st.warning("Please paste a JSON object first.")
             else:
