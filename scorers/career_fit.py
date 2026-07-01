@@ -343,9 +343,15 @@ def score_career_fit(candidate: dict, jd: dict) -> float:
     for job in career:
         title_type = _classify_title(job.get("title", ""))
         comp_type = _classify_company(job.get("company", ""), job.get("industry", ""))
-        
-        # If the role is ML/Search and at a Product/Startup company, sum the months
-        if title_type == "ml_search" and comp_type in ["product", "startup"]:
+    
+        desc_text = (job.get("description", "") or "").lower()
+        desc_retrieval_hits = sum(1 for kw in DESC_RETRIEVAL if kw in desc_text)
+        desc_ml_hits = sum(1 for kw in DESC_ML if kw in desc_text)
+    
+        title_qualifies = title_type == "ml_search"
+        desc_qualifies = (desc_retrieval_hits + desc_ml_hits) >= 2  # ≥2 evidence keywords
+    
+        if (title_qualifies or desc_qualifies) and comp_type in ["product", "startup"]:
             ml_product_months += job.get("duration_months", 0)
             
     if ml_product_months >= 48:
