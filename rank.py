@@ -17,6 +17,7 @@ import hashlib  # Added for deterministic fingerprinting
 from tqdm import tqdm
 import yaml
 import os
+from datetime import date
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "ranking_config.yaml")
 with open(CONFIG_PATH, "r") as f:
@@ -60,6 +61,13 @@ BI_ENCODER_TOP_N = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"]["top_n_pool"]
 CROSS_ENCODER_TOP_N = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["top_n_pool"]
 OUTPUT_TOP_K = RANKING_CONFIG["pipeline"]["output"]["top_k"]
 
+def _days_since(date_str: str) -> int:
+    try:
+        d = date.fromisoformat(str(date_str)[:10])
+        return (date.today() - d).days
+    except Exception:
+        return 9999
+
 #Behavioral dead candidates (inactive + low response rate) should be gated
 def compute_availability_multiplier(candidate):
     signals = candidate.get("redrob_signals", {})
@@ -78,13 +86,20 @@ def _notice_multiplier(candidate: dict) -> float:
     else:                   return 0.65
 
 def score_candidate(candidate: dict, jd: dict) -> tuple:
-    sub_scores = { ... }  # existing
+    sub_scores = {
+        "career_fit":  score_career_fit(candidate, jd),
+        "skill_auth":  score_skill_authenticity(candidate, jd),
+        "behavioral":  score_behavioral(candidate),
+        "education":   score_education(candidate),
+        "logistics":   score_logistics(candidate, jd),
+    }
     composite = sum(WEIGHTS[k] * sub_scores[k] for k in WEIGHTS)
     is_honeypot = detect_honeypot(candidate)
     if is_honeypot:
         composite = 0.0
     else:
-        composite *= _notice_multiplier(candidate) 
+        composite *= _notice_multiplier(candidate)
+        composite *= compute_availability_multiplier(candidate)
     return composite, is_honeypot, sub_scores
 
 def _generate_candidate_fingerprint(candidate: dict) -> str:
