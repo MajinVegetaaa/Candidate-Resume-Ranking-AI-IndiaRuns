@@ -224,7 +224,7 @@ def main():
     print("=" * 60)
 
     # ─── Load Raw JD Text for Semantic Phases ────────────────────────────
-    jd_text = load_jd_text(args.jd)
+    jd_text = JD_CONFIG["jd_text_for_embedding"]
     # ─── Phase 1: Stream & Score ─────────────────────────────────────────
     all_scored = stream_and_score(args.candidates, JD_CONFIG)
     phase1_time = time.time() - start_time
