@@ -277,6 +277,5 @@ def main():
     write_submission(final_scored, args.out, JD_CONFIG)
 
 if __name__ == "__main__":
-    # ─── Load Raw JD Text for Semantic Phases ────────────────────────────
-    # Replace load_jd_text(args.jd) with the archetype text
-    jd_text = JD_CONFIG["jd_text_for_embedding"]
+    import sys
+    sys.exit(main())
