@@ -94,6 +94,17 @@ def score_candidate(candidate: dict, jd: dict) -> tuple:
         "logistics":   score_logistics(candidate, jd),
     }
     composite = sum(WEIGHTS[k] * sub_scores[k] for k in WEIGHTS)
+    # 🚨 STRUCTURAL FLOORS (YoE & Foreign Location)
+    profile = candidate.get("profile", {})
+    yoe = profile.get("years_of_experience", 0)
+    country = str(profile.get("country", "")).strip().lower()
+    
+    if yoe < 4.0:
+        composite *= 0.55  # JD explicitly requires 4+ years minimum
+
+    if country not in ("", "india"):
+        composite *= 0.50
+
     is_honeypot = detect_honeypot(candidate)
     if is_honeypot:
         composite = 0.0
@@ -266,4 +277,6 @@ def main():
     write_submission(final_scored, args.out, JD_CONFIG)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # ─── Load Raw JD Text for Semantic Phases ────────────────────────────
+    # Replace load_jd_text(args.jd) with the archetype text
+    jd_text = JD_CONFIG["jd_text_for_embedding"]
