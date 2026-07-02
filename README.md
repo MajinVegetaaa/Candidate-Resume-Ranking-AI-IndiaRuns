@@ -62,7 +62,6 @@ redrob-ranker/
 │
 ├── config/                            # ── Configuration (No Hardcoding!) ──
 │   ├── ranking_config.yaml            # Pipeline settings, weights, model selection, CPU config
-│   ├── reasoning_templates.yaml       # Tone formatting, gap rules, string templates
 │   ├── jd_config.py                   # Structured JD: titles, skills, keywords, anti-patterns
 │   └── __init__.py
 │
@@ -90,7 +89,6 @@ redrob-ranker/
 
 - **`ranking_config.yaml`**: Adjust scoring weights, change the HuggingFace models, modify the blending ratios between rules and semantics, or change the Top-N pool sizes. 
   - *Hardware Compliance:* The `device` is explicitly forced to `"cpu"` here to guarantee compliance with the hackathon's Stage 3 sandbox environment.
-- **`reasoning_templates.yaml`**: Modify how the reasoning strings sound, adjust the rank thresholds for highlighting "gaps" (like high notice periods or lack of GitHub activity).
 - **`jd_config.py`**: Add new must-have skills, update preferred cities, or change the Job Description embedding text entirely if targeting a new role.
 
 ---
