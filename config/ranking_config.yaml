@@ -22,16 +22,16 @@ pipeline:
     top_k: 100
 
 scoring_weights:
-  career_fit: 0.40 # Dropped slightly, but still the massive anchor
-  skill_auth: 0.30 # Boosted. They MUST have retrieval/ranking tech depth!
-  behavioral: 0.15 # Dropped slightly. (Ghosts are caught by your kill switch anyway)
-  logistics: 0.10 # Keeps the math clean for Pune/Hybrid preferences
-  education: 0.05 # Slashed. Series A startups rarely care about degrees vs. experience
+  career_fit: 0.40
+  skill_auth: 0.30
+  behavioral: 0.15
+  logistics: 0.10
+  education: 0.05
 
 honeypot:
   dataset_year: 2026
 
-  # 1. The "Time-Traveler" Tech Matrix
+  # 1. Historical Baseline Validations
   tech_birth_years:
     # -- General GenAI (Your list) --
     chatgpt: 2022
@@ -67,8 +67,8 @@ honeypot:
 
     # -- Core Architecture Baseline --
     transformers: 2017
-  # 2. The "Immortal / Missing Math" Structural Limits
+  # 2. Structural Anomaly Limits
   structural_limits:
-    max_single_role_months: 480 # 40 years in one job is a classic anomaly trap
-    max_yoe_discrepancy_years: 5.0 # Max difference between Summary YoE and Calculated YoE
-    max_pre_graduation_yoe: 4.0 # Max allowed "working through college" years
+    max_single_role_months: 480
+    max_yoe_discrepancy_years: 5.0
+    max_pre_graduation_yoe: 4.0

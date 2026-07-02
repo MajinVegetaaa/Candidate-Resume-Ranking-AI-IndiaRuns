@@ -57,11 +57,10 @@ def _detect_honeypot_inner(candidate: dict) -> bool:
     years_of_experience = profile.get('years_of_experience', 0) or 0
     signals = candidate.get("redrob_signals", {})
 
-    # ==================================================================
-    # DOMAIN GATES (G1, G2, G3, G4, G6) — Add 2 flags (Instant Reject)
-    # ==================================================================
+    # ─── Domain Gates (Instant Rejection) ───
+    # Candidates failing these gates accrue 2 flags (immediate disqualification).
 
-    # G1: Location Mismatch (Wrong city & won't relocate)
+    # 1. Location Mismatch (Wrong geographic region with no relocation intent)
     location = profile.get("location", "")
     country = profile.get("country", "")
     relocate = signals.get("willing_to_relocate", False)
@@ -76,30 +75,30 @@ def _detect_honeypot_inner(candidate: dict) -> bool:
         if not relocate:
             flags += 2
 
-    # G2: All career titles non-technical
+    # 2. Complete absence of technical history
     if career_history and all(_classify_title(j.get("title", "")) == "non_tech" for j in career_history):
         flags += 2
 
-    # G4: Entire career at consulting firms
+    # 3. Complete career exclusivity in consulting (violates product requirements)
     if career_history and all(_classify_company(j.get("company", ""), j.get("industry", "")) == "consulting" for j in career_history):
         flags += 2
 
-    # G6: Every single job < 12 months (Job Hopper)
+    # 4. High-velocity job hopping (every tenure < 12 months)
     if career_history and all(j.get("duration_months", 12) < 12 for j in career_history):
         flags += 2
 
-    # G7: Copy-Pasted Job Descriptions (2+ identical is suspicious, 3+ is a hard reject)
+    # 5. Duplicated/Copy-pasted job descriptions
     if career_history:
         from collections import Counter
         descs = [j.get("description", "").strip() for j in career_history if j.get("description", "").strip()]
         if len(descs) > 1:
             most_common_count = Counter(descs).most_common(1)[0][1]
             if most_common_count >= 3:
-                flags += 2  # Hard reject: 3+ identical descriptions
+                flags += 2
             elif most_common_count >= 2:
-                flags += 1  # Soft flag: needs one more red signal to reject
+                flags += 1
 
-    # G3: Honeypot Transition (Current tech, all prior non-tech)
+    # 6. Impossible transition (Current tech role, all prior non-tech without bridging context)
     current_title = profile.get("current_title", "")
     if len(career_history) >= 2 and _classify_title(current_title) in ("ml_search", "swe", "data_cloud"):
         prior = [j for j in career_history if not j.get("is_current", False)]
@@ -113,9 +112,8 @@ def _detect_honeypot_inner(candidate: dict) -> bool:
     if flags >= 2:
         return True
 
-    # ==================================================================
-    # TIMELINE CHECKS (Honeypot specific) — Add 1 flag each
-    # ==================================================================
+    # ─── Timeline Validations ───
+    # Accumulate incremental flags for subtle historical discrepancies.
 
     # 1. Overlapping employment dates
     non_current_roles = [r for r in career_history if not r.get('is_current', False)]
@@ -155,7 +153,7 @@ def _detect_honeypot_inner(candidate: dict) -> bool:
             if tech_keyword in skill_name:
                 max_months = (CURRENT_YEAR - birth_year) * 12
                 if duration > max_months + 6:
-                    flags += 2  # Strong signal
+                    flags += 2
                 break
         if flags >= 2: break
 

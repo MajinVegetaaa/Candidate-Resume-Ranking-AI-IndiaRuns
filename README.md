@@ -1,4 +1,4 @@
-# 🏆 Candidate Resume Ranking AI - IndiaRuns Hackathon (Redrob)
+# Candidate Resume Ranking AI - IndiaRuns Hackathon (Redrob)
 ### Team: Tunday Kebabs
 
 An intelligent, AI-powered candidate ranking system that processes **100,000 profiles in ~263 seconds**.
@@ -7,7 +7,7 @@ An intelligent, AI-powered candidate ranking system that processes **100,000 pro
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 Follow these steps to run the ranker on your local machine.
 
@@ -25,7 +25,7 @@ python validate_submission.py ./output/submission.csv
 
 ---
 
-## ⚙️ How It Works (4-Phase Architecture)
+## How It Works (4-Phase Architecture)
 
 To process 100,000 candidates quickly while maintaining deep semantic accuracy, we use a cascaded approach:
 
@@ -52,7 +52,7 @@ To process 100,000 candidates quickly while maintaining deep semantic accuracy, 
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 redrob-ranker/
@@ -60,30 +60,30 @@ redrob-ranker/
 ├── requirements.txt                   # Python dependencies
 ├── README.md                          # This file
 │
-├── config/                            # ── Configuration (No Hardcoding!) ──
+├── config/                            # Configuration Modules
 │   ├── ranking_config.yaml            # Pipeline settings, weights, model selection, CPU config
 │   ├── jd_config.py                   # Structured JD: titles, skills, keywords, anti-patterns
 │   └── __init__.py
 │
-├── scorers/                           # ── Rule-Based Dimensions (Phase 1) ──
+├── scorers/                           # Rule-Based Dimensions (Phase 1)
 │   ├── career_fit.py                  # (0.35) Title match, industry, tenure
 │   ├── skill_authenticity.py          # (0.25) Proficiency, duration, endorsements
 │   ├── behavioral.py                  # (0.20) GitHub, response rate, open-to-work
 │   ├── education.py                   # (0.10) Institution tier, degree relevance
 │   └── logistics.py                   # (0.10) Location, notice period
 │
-├── pipeline/                          # ── AI & Data Pipeline ──
+├── pipeline/                          # AI & Data Pipeline
 │   ├── semantic_reranker.py           # Phase 2 & 3: Bi-Encoder and Cross-Encoder logic
 │   ├── honeypot_detector.py           # 5-check fabricated profile filter
 │   └── reasoning_generator.py         # Dynamic, fact-grounded reasoning string builder
 │
-└── output/                            # ── Results ──
+└── output/                            # Output Results
     └── submission.csv                 # Final ranked top-100 candidates
 ```
 
 ---
 
-## 🛠️ Configuration & Tuning
+## Configuration & Tuning
 
 `config/` directory:
 
@@ -93,7 +93,7 @@ redrob-ranker/
 
 ---
 
-## 🛡️ Anti-Gaming & Honeypots
+## Anti-Gaming & Honeypots
 
 The dataset contains traps that this ranker automatically avoids:
 
@@ -103,7 +103,7 @@ The dataset contains traps that this ranker automatically avoids:
 
 ---
 
-## 🏅 Performance Metrics
+## Performance Metrics
 
 | Metric | Result | Hackathon Limit |
 |--------|--------|-----------------|

@@ -12,30 +12,16 @@ primary_contact:
 team_members:
   - name: "Poorab Mishra"
     email: "pm501@snu.edu.in"
-    role: "Student(Btech CSE'27 - Shiv Nadar University)"
-    
-      name: "TODO-Member 2 Full Name"
-    email: "TODO-member1@example.com"
-    role: "ML Engineer"
-    
-      name: "TODO-Member 1 Full Name"
-    email: "TODO-member1@example.com"
-    role: "ML Engineer"
-
-
+    role: "Student (Btech CSE'27 - Shiv Nadar University)"
 # ============================================================================
 # Code and reproducibility
 # ============================================================================
 github_repo: "https://github.com/MajinVegetaaa/redrob-ranker"
 
 
-sandbox_link: "https://[YOUR-APP-NAME].streamlit.app"
-# Required. A working hosted environment where the ranker can be run on a small
-# candidate sample. Alternatives: Streamlit Cloud, Replit, Colab, Docker, Binder.
+sandbox_link: "https://majinvegetaaa-redrob-ranker-streamlit-app-lkvdbv.streamlit.app/"
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./output/Tunday_Kebabs.csv"
-# Single command that produces the team's CSV from candidates.jsonl.
-# Runs end-to-end within 5 minutes on CPU with 16GB RAM and no network.
 
 # ============================================================================
 # Compute environment

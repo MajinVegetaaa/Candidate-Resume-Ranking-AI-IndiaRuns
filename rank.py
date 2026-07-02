@@ -96,7 +96,7 @@ def score_candidate(candidate: Dict[str, Any], jd: Dict[str, Any]) -> Tuple[floa
     }
     composite = sum(WEIGHTS[k] * sub_scores[k] for k in WEIGHTS)
     
-    # 🚨 STRUCTURAL FLOORS (YoE & Foreign Location)
+    # Structural Floors: Enforce minimum YoE and geographic constraints
     profile = candidate.get("profile", {})
     yoe = float(profile.get("years_of_experience", 0.0) or 0.0)
     country = str(profile.get("country", "")).strip().lower()
@@ -184,7 +184,7 @@ def write_submission(all_ranked_candidates: List[CandidateRecord], output_path: 
     print(f"  Output: {output_path}")
     print(f"{'='*60}\n")
 
-    # Slice ONLY the top K candidates (as ordered by the final semantic phase)
+    # Slice the top K candidates (as ordered by the final semantic phase)
     top_candidates = all_ranked_candidates[:OUTPUT_TOP_K]
 
     # Resolve any rare ties strictly by candidate_id ascending
@@ -261,12 +261,12 @@ def main():
         )
         phase3_time = time.time() - start_time - phase1_time - phase2_time
         print(f"\n  ⏱  Phase 3 completed in {phase3_time:.1f}s")
+        print(f"\n  Phase 3 completed in {phase3_time:.1f}s")
     else:
-        print("\n  ⚠  Semantic reranking skipped (--no-semantic)")
+        print("\n  Semantic reranking skipped (--no-semantic)")
         final_scored = all_scored
 
     # ─── Phase 4: Write Submission ───────────────────────────────────────
-    # FIXED: Passed entire un-sliced list to protect boundary constraints
     write_submission(final_scored, args.out, JD_CONFIG)
 
 if __name__ == "__main__":

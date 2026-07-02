@@ -12,7 +12,7 @@ from config.jd_config import JD_CONFIG
 
 st.set_page_config(page_title="Redrob AI Ranker", layout="wide", page_icon="⚡")
 
-# ── PREMIUM UI CUSTOMIZATION (CSS INJECTION) ─────────────────────────
+# Inject Custom CSS Theme
 st.markdown("""
 <style>
     /* Import modern typography */
@@ -179,7 +179,7 @@ with tab2:
         candidate_json = st.text_area("Paste Raw JSON Object", height=500)
         
     with col2:
-        st.markdown("<br>", unsafe_allow_html=True) # spacer
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Simulate AI Judgment", type="primary", width='stretch'):
             if not candidate_json.strip():
                 st.warning("Please paste a JSON object first.")
