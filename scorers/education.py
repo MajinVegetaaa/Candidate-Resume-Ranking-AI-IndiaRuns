@@ -9,6 +9,8 @@ The best score across all education entries is returned.
 Module weight in final ranking: 0.10
 """
 
+from typing import Any, Dict
+
 # ── institution tier mapping ─────────────────────────────────────────
 TIER_SCORES = {
     "tier_1":  1.00,
@@ -80,7 +82,7 @@ def _degree_score(degree: str) -> float:
     return DEFAULT_DEGREE_SCORE
 
 
-def _score_single_entry(entry: dict) -> float:
+def _score_single_entry(entry: Dict[str, Any]) -> float:
     """Score one education entry: 0.40*tier + 0.35*field + 0.25*degree."""
     tier  = _tier_score(entry.get("tier", "unknown"))
     field = _field_relevance(entry.get("field_of_study", ""))
@@ -90,7 +92,7 @@ def _score_single_entry(entry: dict) -> float:
 
 # ── public entry point ───────────────────────────────────────────────
 
-def score_education(candidate: dict) -> float:
+def score_education(candidate: Dict[str, Any]) -> float:
     """Return a 0.0-1.0 education score for *candidate*.
 
     Scores each education entry on tier, field relevance, and degree

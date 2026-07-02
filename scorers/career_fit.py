@@ -14,8 +14,9 @@ Sub-scores:
 No gate checks here — gates live exclusively in honeypot_detector.py.
 """
 
+import re
 from collections import Counter
-from typing import List
+from typing import Any, Dict, List
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -115,6 +116,14 @@ DESC_NON_TECH = {
     "client engagement", "account management",
 }
 
+# ── Pre-compiled DFA Regex for O(N) Multi-pattern Matching ───────────
+
+RE_RETRIEVAL = re.compile('|'.join(re.escape(k) for k in DESC_RETRIEVAL))
+RE_ML = re.compile('|'.join(re.escape(k) for k in DESC_ML))
+RE_DATA_ENG = re.compile('|'.join(re.escape(k) for k in DESC_DATA_ENG))
+RE_GENERIC = re.compile('|'.join(re.escape(k) for k in DESC_GENERIC_TECH))
+RE_NON_TECH = re.compile('|'.join(re.escape(k) for k in DESC_NON_TECH))
+RE_DEEP_PROOF = re.compile('|'.join(re.escape(k) for k in ["faiss", "pinecone", "weaviate", "qdrant", "milvus", "embedding", "ndcg", "mrr", "cross-encoder"]))
 
 # ══════════════════════════════════════════════════════════════════════════
 # HELPERS
@@ -156,7 +165,7 @@ def _classify_title(title: str) -> str:
 # SUB-SCORE 1: WORK EVIDENCE (weight 0.40)
 # ══════════════════════════════════════════════════════════════════════════
 
-def _score_work_evidence(career: List[dict]) -> float:
+def _score_work_evidence(career: List[Dict[str, Any]]) -> float:
     """Ranking/retrieval/ML evidence in job descriptions."""
     if not career:
         return 0.0
@@ -175,14 +184,14 @@ def _score_work_evidence(career: List[dict]) -> float:
     retrieval = ml = data_eng = generic = 0
     for desc in descs:
         text = _n(desc)
-        r = sum(1 for kw in DESC_RETRIEVAL if kw in text)
-        m = sum(1 for kw in DESC_ML if kw in text)
-        d = sum(1 for kw in DESC_DATA_ENG if kw in text)
-        g = sum(1 for kw in DESC_GENERIC_TECH if kw in text)
-        n = sum(1 for kw in DESC_NON_TECH if kw in text)
-
-        # Look for explicit deep technical proof of embeddings/vector search/evaluation
-        deep_proof = sum(1 for kw in ["faiss", "pinecone", "weaviate", "qdrant", "milvus", "embedding", "ndcg", "mrr", "cross-encoder"] if kw in text)
+        
+        # O(N) text scanning via pre-compiled DFA Regex rather than O(N*M) keyword looping
+        r = len(RE_RETRIEVAL.findall(text))
+        m = len(RE_ML.findall(text))
+        d = len(RE_DATA_ENG.findall(text))
+        g = len(RE_GENERIC.findall(text))
+        n = len(RE_NON_TECH.findall(text))
+        deep_proof = len(RE_DEEP_PROOF.findall(text))
 
         if r >= 2 and deep_proof >= 1:   retrieval += 2
         elif r >= 2:                     retrieval += 1
@@ -205,7 +214,7 @@ def _score_work_evidence(career: List[dict]) -> float:
 # SUB-SCORE 2: TRAJECTORY (weight 0.25)
 # ══════════════════════════════════════════════════════════════════════════
 
-def _score_trajectory(career: List[dict], current_title: str) -> float:
+def _score_trajectory(career: List[Dict[str, Any]], current_title: str) -> float:
     """Role title progression + current title type (merges old 2A + 1A)."""
     if not career and not current_title:
         return 0.10
@@ -238,7 +247,7 @@ def _score_trajectory(career: List[dict], current_title: str) -> float:
 # SUB-SCORE 3: COMPANY QUALITY (weight 0.20)
 # ══════════════════════════════════════════════════════════════════════════
 
-def _score_company_quality(career: List[dict], current_company: str,
+def _score_company_quality(career: List[Dict[str, Any]], current_company: str,
                            current_industry: str, current_size: str) -> float:
     """Product vs consulting mix + scale + current context (merges old 2B + 2E + 1E)."""
     if not career:
@@ -277,7 +286,7 @@ def _score_company_quality(career: List[dict], current_company: str,
 # SUB-SCORE 4: STABILITY (weight 0.15)
 # ══════════════════════════════════════════════════════════════════════════
 
-def _score_stability(career: List[dict], yoe: float) -> float:
+def _score_stability(career: List[Dict[str, Any]], yoe: float) -> float:
     """Tenure stability + YoE sweet spot (merges old 2C + 1D)."""
     # Tenure component (50%)
     if not career:
@@ -307,7 +316,7 @@ def _score_stability(career: List[dict], yoe: float) -> float:
 # PUBLIC API
 # ══════════════════════════════════════════════════════════════════════════
 
-def score_career_fit(candidate: dict, jd: dict) -> float:
+def score_career_fit(candidate: Dict[str, Any], jd: Dict[str, Any]) -> float:
     """Compute career_fit using weighted additive formula.
 
     career_fit = 0.40×work_evidence + 0.25×trajectory
@@ -317,9 +326,9 @@ def score_career_fit(candidate: dict, jd: dict) -> float:
 
     Parameters
     ----------
-    candidate : dict
+    candidate : Dict[str, Any]
         Candidate profile.
-    jd : dict
+    jd : Dict[str, Any]
         Job-description config (JD_CONFIG).
 
     Returns

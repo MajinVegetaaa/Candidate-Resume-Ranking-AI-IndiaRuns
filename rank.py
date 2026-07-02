@@ -10,37 +10,39 @@ final top 100 with fact-grounded reasoning.
 
 import argparse
 import csv
+import hashlib
 import json
+import os
 import sys
 import time
-import hashlib  # Added for deterministic fingerprinting
-from tqdm import tqdm
-import yaml
-import os
 from datetime import date
+from typing import Any, Dict, List, Tuple
 
+import yaml
+from tqdm import tqdm
+
+from config.jd_config import JD_CONFIG
+from pipeline.honeypot_detector import detect_honeypot
+from pipeline.reasoning_generator import generate_reasoning
+from pipeline.semantic_reranker import (
+    bi_encoder_rerank,
+    cross_encoder_rerank,
+    load_bi_encoder,
+    load_cross_encoder,
+)
+from scorers.behavioral import score_behavioral
+from scorers.career_fit import score_career_fit
+from scorers.education import score_education
+from scorers.logistics import score_logistics
+from scorers.skill_authenticity import score_skill_authenticity
+
+# ─── Type Aliases ────────────────────────────────────────────────────────
+CandidateRecord = Tuple[str, float, Dict[str, Any]]
+
+# ─── Global Configuration ────────────────────────────────────────────────
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "ranking_config.yaml")
 with open(CONFIG_PATH, "r") as f:
     RANKING_CONFIG = yaml.safe_load(f)
-
-
-
-
-# ── Config ───────────────────────────────────────────────────────────────
-from config.jd_config import JD_CONFIG
-
-# ── Scorers (5 dimensions) ──────────────────────────────────────────────
-from scorers.career_fit import score_career_fit
-from scorers.skill_authenticity import score_skill_authenticity
-from scorers.behavioral import score_behavioral
-from scorers.education import score_education
-from scorers.logistics import score_logistics
-
-# ── Pipeline stages ─────────────────────────────────────────────────────
-from pipeline.honeypot_detector import detect_honeypot
-# FIXED: Imported the correct multi-phase pipeline functions
-from pipeline.semantic_reranker import load_bi_encoder, load_cross_encoder, bi_encoder_rerank, cross_encoder_rerank
-from pipeline.reasoning_generator import generate_reasoning
 
 
 # ─── Scoring Weights ─────────────────────────────────────────────────────
@@ -50,31 +52,41 @@ BI_ENCODER_TOP_N = RANKING_CONFIG["pipeline"]["phase2_bi_encoder"]["top_n_pool"]
 CROSS_ENCODER_TOP_N = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["top_n_pool"]
 OUTPUT_TOP_K = RANKING_CONFIG["pipeline"]["output"]["top_k"]
 
-def _days_since(date_str: str) -> int:
+def _days_since(date_str: Any) -> int:
+    """Safely computes the number of days since a given ISO date string."""
     try:
         d = date.fromisoformat(str(date_str)[:10])
         return (date.today() - d).days
     except Exception:
         return 9999
 
-#Behavioral dead candidates (inactive + low response rate) should be gated
-def compute_availability_multiplier(candidate):
+def compute_availability_multiplier(candidate: Dict[str, Any]) -> float:
+    """Gates candidates with poor behavioral signals (inactive + low response)."""
     signals = candidate.get("redrob_signals", {})
     days_inactive = _days_since(signals.get("last_active_date", ""))
-    response_rate = signals.get("recruiter_response_rate", 0) or 0
-    if days_inactive > 180 and response_rate < 0.2:  return 0.3
-    if days_inactive > 90 and response_rate < 0.15:  return 0.4
-    if not signals.get("open_to_work_flag") and days_inactive > 60: return 0.75
+    response_rate = float(signals.get("recruiter_response_rate", 0) or 0.0)
+    
+    if days_inactive > 180 and response_rate < 0.2:
+        return 0.3
+    if days_inactive > 90 and response_rate < 0.15:
+        return 0.4
+    if not signals.get("open_to_work_flag") and days_inactive > 60:
+        return 0.75
     return 1.0
     
-def _notice_multiplier(candidate: dict) -> float:
-    notice_days = candidate.get("redrob_signals", {}).get("notice_period_days", 0) or 0
-    if notice_days <= 30:   return 1.0
-    elif notice_days <= 60: return 0.92
-    elif notice_days <= 90: return 0.80
-    else:                   return 0.65
+def _notice_multiplier(candidate: Dict[str, Any]) -> float:
+    """Penalizes candidates with exceptionally long notice periods."""
+    notice_days = int(candidate.get("redrob_signals", {}).get("notice_period_days", 0) or 0)
+    if notice_days <= 30:
+        return 1.0
+    if notice_days <= 60:
+        return 0.92
+    if notice_days <= 90:
+        return 0.80
+    return 0.65
 
-def score_candidate(candidate: dict, jd: dict) -> tuple:
+def score_candidate(candidate: Dict[str, Any], jd: Dict[str, Any]) -> Tuple[float, bool, Dict[str, float]]:
+    """Calculates the Phase 1 Rule-Based composite score for a single candidate."""
     sub_scores = {
         "career_fit":  score_career_fit(candidate, jd),
         "skill_auth":  score_skill_authenticity(candidate, jd),
@@ -83,9 +95,10 @@ def score_candidate(candidate: dict, jd: dict) -> tuple:
         "logistics":   score_logistics(candidate, jd),
     }
     composite = sum(WEIGHTS[k] * sub_scores[k] for k in WEIGHTS)
+    
     # 🚨 STRUCTURAL FLOORS (YoE & Foreign Location)
     profile = candidate.get("profile", {})
-    yoe = profile.get("years_of_experience", 0)
+    yoe = float(profile.get("years_of_experience", 0.0) or 0.0)
     country = str(profile.get("country", "")).strip().lower()
     
     if yoe < 4.0:
@@ -100,30 +113,23 @@ def score_candidate(candidate: dict, jd: dict) -> tuple:
     else:
         composite *= _notice_multiplier(candidate)
         composite *= compute_availability_multiplier(candidate)
+        
     return composite, is_honeypot, sub_scores
 
-def _generate_candidate_fingerprint(candidate: dict) -> str:
-    """
-    FIXED: Generates a deterministic MD5 hash string instead of Python's 
-    unstable process-based hash() function.
-    """
-    career = candidate.get('career_history', []) or []
-    edu = candidate.get('education', []) or []
+def _generate_candidate_fingerprint(candidate: Dict[str, Any]) -> str:
+    """Generates a fast, deterministic MD5 fingerprint for a candidate."""
+    career = candidate.get('career_history') or []
+    edu = candidate.get('education') or []
 
-    career_sig = "|".join([
-        f"{str(role.get('company')).lower()}_{str(role.get('title')).lower()}_{role.get('duration_months', 0)}"
-        for role in career[:3]
-    ])
+    # Use tuple string representation for ultra-fast deterministic hashing
+    sig_tuple = (
+        tuple((str(r.get('company')).lower(), str(r.get('title')).lower(), r.get('duration_months', 0)) for r in career[:3]),
+        tuple((str(e.get('institution')).lower(), str(e.get('degree')).lower(), e.get('end_year', '')) for e in edu[:2])
+    )
+    return hashlib.md5(str(sig_tuple).encode('utf-8')).hexdigest()
 
-    edu_sig = "|".join([
-        f"{str(e.get('institution')).lower()}_{str(e.get('degree')).lower()}_{e.get('end_year', '')}"
-        for e in edu[:2]
-    ])
-
-    combined_str = f"{career_sig}###{edu_sig}"
-    return hashlib.md5(combined_str.encode('utf-8')).hexdigest()
-
-def stream_and_score(candidates_path: str, jd: dict) -> list:
+def stream_and_score(candidates_path: str, jd: Dict[str, Any]) -> List[CandidateRecord]:
+    """Streams candidates from disk, applies Phase 1 rules, and blocks duplicates."""
     results = []
     honeypot_count = 0
     total_count = 0
@@ -168,11 +174,10 @@ def stream_and_score(candidates_path: str, jd: dict) -> list:
     
     return results
     
-def write_submission(all_ranked_candidates: list, output_path: str, jd: dict):
+def write_submission(all_ranked_candidates: List[CandidateRecord], output_path: str, jd: Dict[str, Any]) -> None:
     """
-    Writes the top 100 candidates to the CSV.
-    Safely slices the top outputs from Phase 3, avoiding sorting the entire 
-    100,000 pool which would allow un-reranked candidates to bubble up.
+    Writes the top 100 candidates to the final submission CSV.
+    Safely slices the top outputs from Phase 3, avoiding full sorts.
     """
     print(f"\n{'='*60}")
     print(f"  PHASE 4: Writing Submission")

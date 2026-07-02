@@ -13,7 +13,7 @@ Sub-scores:
 No gate checks here — gates live exclusively in honeypot_detector.py.
 """
 
-from typing import List
+from typing import Any, Dict, List
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -118,7 +118,7 @@ def _n(s: str) -> str:
 # SUB-SCORE 1: RELEVANCE (weight 0.45)
 # ══════════════════════════════════════════════════════════════════════════
 
-def _score_relevance(skills: List[dict]) -> float:
+def _score_relevance(skills: List[Dict[str, Any]]) -> float:
     """Which JD-relevant skill categories are present."""
     if not skills:
         return 0.05
@@ -145,7 +145,7 @@ def _score_relevance(skills: List[dict]) -> float:
 # SUB-SCORE 2: DEPTH (weight 0.30) — merges proficiency + tenure
 # ══════════════════════════════════════════════════════════════════════════
 
-def _score_depth(skills: List[dict]) -> float:
+def _score_depth(skills: List[Dict[str, Any]]) -> float:
     """Combined proficiency level + tenure on JD-relevant skills."""
     # Only measure depth against CORE Search/Ranking skills, not generic ML
     core_relevant = [s for s in skills if _n(s.get("name", "")) in (RETRIEVAL_VECTOR | EMBEDDINGS_TRANSFORMERS | RANKING_RECSYS)]
@@ -181,7 +181,7 @@ def _score_depth(skills: List[dict]) -> float:
 # SUB-SCORE 3: SUMMARY (weight 0.25) — summary quality + cert bonus
 # ══════════════════════════════════════════════════════════════════════════
 
-def _score_summary(summary: str, certifications: List[dict]) -> float:
+def _score_summary(summary: str, certifications: List[Dict[str, Any]]) -> float:
     """Profile summary technical quality + certification bonus."""
     # Summary component (base)
     if not summary:
@@ -221,7 +221,7 @@ def _score_summary(summary: str, certifications: List[dict]) -> float:
 # PUBLIC API
 # ══════════════════════════════════════════════════════════════════════════
 
-def score_skill_authenticity(candidate: dict, jd: dict) -> float:
+def score_skill_authenticity(candidate: Dict[str, Any], jd: Dict[str, Any]) -> float:
     """Compute skill_fit using weighted additive formula.
 
     skill_fit = 0.45×relevance + 0.30×depth + 0.25×summary
@@ -230,9 +230,9 @@ def score_skill_authenticity(candidate: dict, jd: dict) -> float:
 
     Parameters
     ----------
-    candidate : dict
+    candidate : Dict[str, Any]
         Candidate profile.
-    jd : dict
+    jd : Dict[str, Any]
         Job-description config (JD_CONFIG).
 
     Returns

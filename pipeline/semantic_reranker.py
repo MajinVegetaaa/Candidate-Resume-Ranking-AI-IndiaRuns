@@ -5,11 +5,16 @@ Stage 1: Bi-Encoder (all-mpnet-base-v2) for fast vector search.
 Stage 2: Cross-Encoder (ms-marco-MiniLM-L-6-v2) for deep contextual reasoning.
 """
 
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-import yaml
 import os
+from typing import Any, Dict, List, Tuple
+
+import numpy as np
+import yaml
 from scipy.special import expit
+from sklearn.metrics.pairwise import cosine_similarity
+
+# ─── Type Aliases ────────────────────────────────────────────────────────
+CandidateRecord = Tuple[str, float, Dict[str, Any]]
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "ranking_config.yaml")
 with open(CONFIG_PATH, "r") as f:
@@ -25,7 +30,7 @@ def load_cross_encoder(model_name: str = 'cross-encoder/ms-marco-MiniLM-L-6-v2',
     from sentence_transformers import CrossEncoder
     return CrossEncoder(model_name, device=device)
 
-def _build_candidate_text(candidate: dict) -> str:
+def _build_candidate_text(candidate: Dict[str, Any]) -> str:
     """Build a rich text representation of a candidate for embedding."""
     parts = []
     profile = candidate.get('profile', {})
@@ -44,7 +49,7 @@ def _build_candidate_text(candidate: dict) -> str:
 
     return ". ".join(parts)
 
-def bi_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_n: int) -> list:
+def bi_encoder_rerank(model: Any, jd_text: str, candidates_with_scores: List[CandidateRecord], top_n: int) -> List[CandidateRecord]:
     """PHASE 2: Rerank using Bi-Encoder cosine similarity."""
     rerank_pool = candidates_with_scores[:top_n]
     remainder = candidates_with_scores[top_n:]
@@ -56,7 +61,6 @@ def bi_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_n: 
     candidate_embeddings = model.encode(candidate_texts, batch_size=32)
 
     similarities = cosine_similarity(jd_embedding, candidate_embeddings)[0]
-    similarities = np.nan_to_num(similarities, nan=0.0)
     
     # Min-Max scaling to map the pool's scores to the full 0.0 - 1.0 range
     min_sim = np.min(similarities)
@@ -79,7 +83,7 @@ def bi_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_n: 
     reranked.sort(key=lambda x: x[1], reverse=True)
     return reranked + remainder
 
-def cross_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_n: int) -> list:
+def cross_encoder_rerank(model: Any, jd_text: str, candidates_with_scores: List[CandidateRecord], top_n: int) -> List[CandidateRecord]:
     """PHASE 3: Deep contextual reranking using Cross-Encoder."""
     rerank_pool = candidates_with_scores[:top_n]
     remainder = candidates_with_scores[top_n:]
@@ -91,19 +95,10 @@ def cross_encoder_rerank(model, jd_text: str, candidates_with_scores: list, top_
     
     # Predict yields raw logits (can be negative or positive)
     ce_scores = model.predict(pairs)
-    ce_scores = np.nan_to_num(ce_scores, nan=0.0)
     
-    # # Min-Max scaling to map the logits directly to 0.0 - 1.0 range
-    # min_ce = np.min(ce_scores)
-    # max_ce = np.max(ce_scores)
-    # if max_ce > min_ce:
-    #     norm_ce_scores = (ce_scores - min_ce) / (max_ce - min_ce)
-    # else:
-    #     norm_ce_scores = np.zeros_like(ce_scores)
-
-    # With this (sigmoid keeps relative order, doesn't amplify noise):
-    norm_ce_scores = expit(ce_scores)  # maps any logits to (0,1) smoothly
-    norm_ce_scores = np.nan_to_num(norm_ce_scores, nan=0.0)
+    # Sigmoid function (expit) maps any logits to (0,1) smoothly without 
+    # amplifying noisy outliers the way Min-Max scaling would.
+    norm_ce_scores = np.nan_to_num(expit(ce_scores), nan=0.0)
 
     prev_weight = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["blend_weights"]["prev_score"]
     semantic_weight = RANKING_CONFIG["pipeline"]["phase3_cross_encoder"]["blend_weights"]["semantic_score"]

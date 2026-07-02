@@ -5,9 +5,11 @@ Dynamically generates short, punchy, brutally honest, and fact-grounded sentence
 based on exact candidate data. Evaluates candidates across 5 granular tiers.
 """
 
-from config.jd_config import JD_CONFIG, ALL_JD_SKILLS
+from typing import Any, Dict, List
 
-def _matched_skills_detailed(candidate: dict) -> list[str]:
+from config.jd_config import ALL_JD_SKILLS, JD_CONFIG
+
+def _matched_skills_detailed(candidate: Dict[str, Any]) -> List[str]:
     """Return up to 3 candidate skills that match JD skills."""
     matched = []
     for skill in (candidate.get('skills', []) or []):
@@ -21,7 +23,7 @@ def _matched_skills_detailed(candidate: dict) -> list[str]:
             break
     return matched
 
-def _format_list(items: list[str]) -> str:
+def _format_list(items: List[str]) -> str:
     """Format a list of strings into a proper English list (e.g. A, B, and C)."""
     if not items: return ""
     if len(items) == 1: return items[0]
@@ -32,7 +34,7 @@ def _candidate_hash(candidate_id: str) -> int:
     """Simple hash from candidate_id for deterministic sentence variation."""
     return sum(ord(c) for c in candidate_id) % 7
 
-def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
+def generate_reasoning(candidate: Dict[str, Any], rank: int, jd: Dict[str, Any]) -> str:
     """Produce a concise, grammatically flowing, and brutally honest reasoning string."""
     profile = candidate.get('profile', {})
     signals = candidate.get('redrob_signals', {})
@@ -44,10 +46,10 @@ def generate_reasoning(candidate: dict, rank: int, jd: dict) -> str:
     if not company or company.lower() == 'n/a': 
         company = 'their current company'
         
-    yoe = profile.get('years_of_experience', 0) or 0
+    yoe = float(profile.get('years_of_experience', 0.0) or 0.0)
     
-    notice = signals.get('notice_period_days', 0) or 0
-    response_rate = signals.get('recruiter_response_rate', 0) or 0
+    notice = int(signals.get('notice_period_days', 0) or 0)
+    response_rate = float(signals.get('recruiter_response_rate', 0.0) or 0.0)
     
     matched_skills = _matched_skills_detailed(candidate)
     skills_str = _format_list(matched_skills) if matched_skills else "related competencies"

@@ -6,6 +6,8 @@ work mode — align with the job requirements. Notice period is handled
 as a late-stage multiplier in the main ranking loop.
 """
 
+from typing import Any, Dict
+
 # ── location buckets ─────────────────────────────────────────────────
 PREFERRED_LOCATIONS = {"noida", "pune"}
 
@@ -20,7 +22,7 @@ ACCEPTABLE_LOCATIONS = {
 W_LOCATION    = 0.65
 W_WORK_MODE   = 0.35
 
-def score_logistics(candidate: dict, jd: dict) -> float:
+def score_logistics(candidate: Dict[str, Any], jd: Dict[str, Any]) -> float:
     profile = candidate.get("profile", {})
     signals = candidate.get("redrob_signals", {})
     

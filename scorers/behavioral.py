@@ -21,6 +21,7 @@ Design rules:
 """
 
 from datetime import datetime, date
+from typing import Any, Dict
 
 from config.jd_config import ALL_JD_SKILLS
 
@@ -33,7 +34,7 @@ _JD_SKILLS_LOWER: set = {s.lower() for s in ALL_JD_SKILLS}
 # HELPER
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _days_since(date_str: str) -> int:
+def _days_since(date_str: Any) -> int:
     """Days elapsed since *date_str*. Returns 9999 on parse failure."""
     try:
         d = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -48,7 +49,7 @@ def _days_since(date_str: str) -> int:
 # Work mode, notice period, and relocation are now in scorers/logistics.py.
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _delta_tier1_assessments(signals: dict) -> float:
+def _delta_tier1_assessments(signals: Dict[str, Any]) -> float:
     delta = 0.0
 
     # ── Skill assessment scores (only verified technical proof) ───────────────
@@ -79,7 +80,7 @@ def _delta_tier1_assessments(signals: dict) -> float:
 # Measures whether the candidate is genuinely and actively in the job market.
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _delta_tier2_intent(signals: dict) -> float:
+def _delta_tier2_intent(signals: Dict[str, Any]) -> float:
     delta = 0.0
 
     # ── Last active date (strongest intent signal) ────────────────────────────
@@ -131,7 +132,7 @@ def _delta_tier2_intent(signals: dict) -> float:
 # Will they professionally engage once contacted?
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _delta_tier3_responsiveness(signals: dict) -> float:
+def _delta_tier3_responsiveness(signals: Dict[str, Any]) -> float:
     delta = 0.0
 
     # ── Recruiter response rate ───────────────────────────────────────────────
@@ -165,7 +166,7 @@ def _delta_tier3_responsiveness(signals: dict) -> float:
 # Is this a real, serious person with a verifiable identity?
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _delta_tier4_trust(signals: dict) -> float:
+def _delta_tier4_trust(signals: Dict[str, Any]) -> float:
     delta = 0.0
 
     # ── Profile completeness ──────────────────────────────────────────────────
@@ -201,7 +202,7 @@ def _delta_tier4_trust(signals: dict) -> float:
 # All rewards, no penalties — absence of social proof ≠ bad candidate.
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _delta_tier5_social_proof(signals: dict) -> float:
+def _delta_tier5_social_proof(signals: Dict[str, Any]) -> float:
     delta = 0.0
 
     # ── Saved by recruiters in last 30 days ───────────────────────────────────
@@ -233,7 +234,7 @@ def _delta_tier5_social_proof(signals: dict) -> float:
 # Near-zero JD signal. Minimal weights to avoid distorting the score.
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _delta_tier6_noise(signals: dict) -> float:
+def _delta_tier6_noise(signals: Dict[str, Any]) -> float:
     delta = 0.0
 
     # ── Search appearances in last 30 days ────────────────────────────────────
@@ -262,7 +263,7 @@ def _delta_tier6_noise(signals: dict) -> float:
 # PUBLIC API
 # ══════════════════════════════════════════════════════════════════════════════
 
-def score_behavioral(candidate: dict) -> float:
+def score_behavioral(candidate: Dict[str, Any]) -> float:
     """Compute behavioral score from redrob_signals.
 
     Formula:
@@ -276,7 +277,7 @@ def score_behavioral(candidate: dict) -> float:
 
     Parameters
     ----------
-    candidate : dict
+    candidate : Dict[str, Any]
         Full candidate profile dict (must contain 'redrob_signals' key).
 
     Returns
