@@ -76,7 +76,7 @@ methodology_summary: |
   Phase 2 re-ranks the Top 1,000 using 'all-mpnet-base-v2' embeddings, anchored by a strict 
   75% Heuristic / 25% Semantic blend to prevent neural bulldozing. 
 
-  Phase 3 deep-ranks the Top 200 using 'cross-encoder/ms-marco-MiniLM-L-6-v2', calibrated 
+  Phase 3 deep-ranks the Top 300 using 'cross-encoder/ms-marco-MiniLM-L-6-v2', calibrated 
   via a Sigmoid function with a 70% Heuristic / 30% Semantic blend.
 
   The final output is passed to a deterministic prompt template to generate fact-grounded 
