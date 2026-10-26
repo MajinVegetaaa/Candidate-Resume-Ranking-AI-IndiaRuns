@@ -66,11 +66,11 @@ redrob-ranker/
 │   └── __init__.py
 │
 ├── scorers/                           # Rule-Based Dimensions (Phase 1)
-│   ├── career_fit.py                  # (0.35) Title match, industry, tenure
-│   ├── skill_authenticity.py          # (0.25) Proficiency, duration, endorsements
-│   ├── behavioral.py                  # (0.20) GitHub, response rate, open-to-work
+│   ├── career_fit.py                  # (0.40) Title match, industry, tenure
+│   ├── skill_authenticity.py          # (0.30) Proficiency, duration, endorsements
+│   ├── behavioral.py                  # (0.15) GitHub, response rate, open-to-work
 │   ├── education.py                   # (0.10) Institution tier, degree relevance
-│   └── logistics.py                   # (0.10) Location, notice period
+│   └── logistics.py                   # (0.05) Location, notice period
 │
 ├── pipeline/                          # AI & Data Pipeline
 │   ├── semantic_reranker.py           # Phase 2 & 3: Bi-Encoder and Cross-Encoder logic
