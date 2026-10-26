@@ -23,6 +23,10 @@ python rank.py --candidates /path/to/candidates.jsonl --out ./output/submission.
 python validate_submission.py ./output/submission.csv
 ```
 
+## Live Demo
+sandbox_link: <mark>[Resume_Ranker](https://majinvegetaaa-redrob-ranker-streamlit-app-lkvdbv.streamlit.app/)</mark>
+
+# Streamlit Community Cloud deployed interactive testing environment.
 ---
 
 ## How It Works (4-Phase Architecture)
